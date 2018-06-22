@@ -10,8 +10,8 @@ type alias Model =
     {}
 
 
-init : Global.Session -> String -> Task Global.Error Model
-init session id =
+init : Global.Context -> String -> Task Global.Error Model
+init context id =
     Task.succeed {}
 
 
@@ -19,8 +19,8 @@ type Msg
     = NoOp
 
 
-update : Global.Session -> Msg -> Model -> ( Model, Cmd Msg )
-update session msg model =
+update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
+update context msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )

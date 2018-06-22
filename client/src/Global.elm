@@ -1,17 +1,17 @@
 module Global
     exposing
-        ( Error(..)
+        ( Context
+        , Error(..)
         , IdToken
-        , Session
+        , authorize
+        , context
         , encodeToken
-        , header
         , parseToken
-        , session
         )
 
 import Http
-import Json.Decode exposing (Decoder)
-import Json.Encode exposing (Value)
+import Json.Decode as D
+import Json.Encode as E
 
 
 type Error
@@ -22,8 +22,10 @@ type Error
 -- AUTH
 
 
-type alias Session =
-    { idToken : Maybe IdToken }
+type alias Context =
+    { dbapi : String
+    , auth : Maybe IdToken
+    }
 
 
 {-| Auth0 Redirect URLs can have these variables:
@@ -57,23 +59,27 @@ findToken chunk =
             Nothing
 
 
+authorize : Context -> Http.Header
+authorize context =
+    case context.auth of
+        Nothing ->
+            Http.header "" ""
+
+        Just (IdToken raw) ->
+            Http.header "Authorization" <| "Bearer " ++ raw
+
+
 
 -- JSON
 
 
-session : Decoder IdToken
-session =
-    Json.Decode.map IdToken
-        (Json.Decode.field "id_token" Json.Decode.string)
+context : D.Decoder Context
+context =
+    D.map2 Context
+        (D.field "dbapi" D.string)
+        (D.maybe <| D.field "id_token" <| D.map IdToken D.string)
 
 
-encodeToken : IdToken -> Value
+encodeToken : IdToken -> E.Value
 encodeToken (IdToken raw) =
-    Json.Encode.object
-        [ ( "id_token", Json.Encode.string raw )
-        ]
-
-
-header : IdToken -> Http.Header
-header (IdToken raw) =
-    Http.header "Authorization" <| "Bearer " ++ raw
+    E.object [ ( "id_token", E.string raw ) ]

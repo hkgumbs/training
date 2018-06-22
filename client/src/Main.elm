@@ -13,7 +13,7 @@ import Task
 
 type alias Model =
     { page : Page
-    , session : Global.Session
+    , context : Global.Context
     }
 
 
@@ -25,15 +25,15 @@ type Page
 
 init : Value -> Navigation.Location -> ( Model, Cmd Msg )
 init value location =
-    let
-        token =
-            Json.Decode.decodeValue Global.session value
-                |> Result.toMaybe
-    in
-    goTo (Route.fromLocation location)
-        { page = Blank
-        , session = Global.Session token
-        }
+    case Json.Decode.decodeValue Global.context value of
+        Err _ ->
+            Debug.crash {- TODO -} "BAD CONTEXT"
+
+        Ok context ->
+            goTo (Route.fromLocation location)
+                { page = Blank
+                , context = context
+                }
 
 
 type Msg
@@ -60,19 +60,19 @@ update msg model =
 
 
 goTo : Maybe Route.Route -> Model -> ( Model, Cmd Msg )
-goTo destination ({ session } as model) =
+goTo destination ({ context } as model) =
     case destination of
         Nothing ->
             ( model, Route.modifyUrl Route.Dashboard )
 
         Just Route.Dashboard ->
-            ( model, Task.attempt (load Dashboard) <| Dashboard.Page.init session )
+            ( model, Task.attempt (load Dashboard) <| Dashboard.Page.init context )
 
         Just (Route.Client id) ->
-            ( model, Task.attempt (load Client) <| Client.Page.init session id )
+            ( model, Task.attempt (load Client) <| Client.Page.init context id )
 
         Just (Route.TokenRedirect idToken) ->
-            ( { model | session = { session | idToken = Just idToken } }
+            ( { model | context = { context | auth = Just idToken } }
             , Cmd.batch [ Js.saveToken idToken, Route.modifyUrl Route.Dashboard ]
             )
 
