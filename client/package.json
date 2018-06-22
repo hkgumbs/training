@@ -1,0 +1,16 @@
+{
+  "name": "progress",
+  "version": "1.0.0",
+  "repository": "github.com/user/project.git",
+  "description": "This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).",
+  "main": "index.js",
+  "directories": {},
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "auth0-js": "^9.3.3",
+    "bulma": "^0.6.2",
+    "create-elm-app": "^1.10.3"
+  }
+}
