@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Client.Page
 import Dashboard.Page
 import Global
 import Html
@@ -7,6 +8,7 @@ import Js
 import Json.Decode exposing (Value)
 import Navigation
 import Route
+import Task
 
 
 type alias Model =
@@ -17,7 +19,7 @@ type alias Model =
 
 type Page
     = Blank
-      -- | Client Client.Page.Model
+    | Client Client.Page.Model
     | Dashboard Dashboard.Page.Model
 
 
@@ -61,15 +63,18 @@ goTo : Maybe Route.Route -> Model -> ( Model, Cmd Msg )
 goTo destination ({ session } as model) =
     case destination of
         Nothing ->
-            ( model, Cmd.none )
+            ( model, Route.modifyUrl Route.Dashboard )
+
+        Just Route.Dashboard ->
+            ( model, Task.attempt (load Dashboard) <| Dashboard.Page.init session )
+
+        Just (Route.Client id) ->
+            ( model, Task.attempt (load Client) <| Client.Page.init session id )
 
         Just (Route.TokenRedirect idToken) ->
             ( { model | session = { session | idToken = Just idToken } }
             , Cmd.batch [ Js.saveToken idToken, Route.modifyUrl Route.Dashboard ]
             )
-
-        _ ->
-            Debug.crash {- TODO -} "__other pages__"
 
 
 load : (a -> Page) -> Result Global.Error a -> Msg
@@ -90,6 +95,9 @@ view { page } =
 
         Dashboard model ->
             Dashboard.Page.view model
+
+        Client model ->
+            Client.Page.view model
 
 
 main : Program Value Model Msg

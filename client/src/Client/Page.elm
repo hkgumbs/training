@@ -1,4 +1,4 @@
-module Dashboard.Page exposing (Model, Msg, init, update, view)
+module Client.Page exposing (Model, Msg, init, update, view)
 
 import Global
 import Html exposing (..)
@@ -10,8 +10,8 @@ type alias Model =
     {}
 
 
-init : Global.Session -> Task Global.Error Model
-init session =
+init : Global.Session -> String -> Task Global.Error Model
+init session id =
     Task.succeed {}
 
 
@@ -28,4 +28,4 @@ update session msg model =
 
 view : Model -> Html msg
 view model =
-    div [] [ text "DASHBOARD" ]
+    div [] [ text "CLIENT" ]
