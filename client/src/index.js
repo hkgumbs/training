@@ -3,13 +3,16 @@ import { Main } from './Main.elm';
 import auth0 from 'auth0-js';
 import registerServiceWorker from './registerServiceWorker';
 
-var node = document.getElementById('root');
-var token = JSON.parse(localStorage.getItem('auth-token'));
-var app = Main.embed(node, token);
+const node = document.getElementById('root');
+const token = JSON.parse(localStorage.getItem('auth-token'));
+const dbapi = process.ENV === 'development'
+  ? 'localhost:3001'
+  : 'https://progress-api.herokuapp.com/';
+const app = Main.embed(node, { dbapi, token });
 
-var initialUri = window.location.href.split("#")[0];
-var clientID = '2B20LQM-ze-J2iaVnvL6LsQ9zZ2I7oT7';
-var auth = new auth0.WebAuth({
+const initialUri = window.location.href.split('#')[0];
+const clientID = '2B20LQM-ze-J2iaVnvL6LsQ9zZ2I7oT7';
+const auth = new auth0.WebAuth({
   domain: 'progress-app.auth0.com',
   responseType: 'id_token',
   scope: 'openid',
@@ -19,16 +22,16 @@ var auth = new auth0.WebAuth({
 
 app.ports.outgoing.subscribe(function(msg) {
   switch (msg.tag) {
-    case "LOGIN":
+    case 'LOGIN':
       auth.authorize();
       return;
 
-    case "LOGOUT":
+    case 'LOGOUT':
       localStorage.removeItem('auth-token');
       auth.logout({ clientID: clientID, returnTo: initialUri });
       return;
 
-    case "SAVE-TOKEN":
+    case 'SAVE-TOKEN':
       localStorage.setItem('auth-token', JSON.stringify(msg.data));
       return;
   }

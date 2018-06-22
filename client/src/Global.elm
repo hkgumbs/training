@@ -2,7 +2,7 @@ module Global
     exposing
         ( Context
         , Error(..)
-        , IdToken
+        , Token
         , authorize
         , context
         , encodeToken
@@ -24,7 +24,7 @@ type Error
 
 type alias Context =
     { dbapi : String
-    , auth : Maybe IdToken
+    , auth : Maybe Token
     }
 
 
@@ -37,11 +37,11 @@ type alias Context =
   - id_token=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXX-XXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXXXX
 
 -}
-type IdToken
-    = IdToken String
+type Token
+    = Token String
 
 
-parseToken : String -> Result String IdToken
+parseToken : String -> Result String Token
 parseToken =
     String.split "&"
         >> List.filterMap findToken
@@ -49,11 +49,11 @@ parseToken =
         >> Result.fromMaybe "couldn't find the `id_token` parameter"
 
 
-findToken : String -> Maybe IdToken
+findToken : String -> Maybe Token
 findToken chunk =
     case String.split "=" chunk of
         [ "id_token", value ] ->
-            Just (IdToken value)
+            Just (Token value)
 
         _ ->
             Nothing
@@ -65,7 +65,7 @@ authorize context =
         Nothing ->
             Http.header "" ""
 
-        Just (IdToken raw) ->
+        Just (Token raw) ->
             Http.header "Authorization" <| "Bearer " ++ raw
 
 
@@ -77,9 +77,9 @@ context : D.Decoder Context
 context =
     D.map2 Context
         (D.field "dbapi" D.string)
-        (D.maybe <| D.field "id_token" <| D.map IdToken D.string)
+        (D.maybe <| D.field "token" <| D.map Token D.string)
 
 
-encodeToken : IdToken -> E.Value
-encodeToken (IdToken raw) =
-    E.object [ ( "id_token", E.string raw ) ]
+encodeToken : Token -> E.Value
+encodeToken (Token raw) =
+    E.string raw

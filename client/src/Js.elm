@@ -4,7 +4,7 @@ import Global
 import Json.Encode exposing (Value)
 
 
-saveToken : Global.IdToken -> Cmd msg
+saveToken : Global.Token -> Cmd msg
 saveToken =
     outgoing << tag "SAVE-TOKEN" << Global.encodeToken
 
