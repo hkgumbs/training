@@ -1,4 +1,4 @@
-module Client.Days exposing (days, mondayFirst)
+module Client.Days exposing (days, mondayFirst, toString)
 
 import Date
 import Json.Decode as D
@@ -63,3 +63,28 @@ mondayFirst day =
 
         Date.Sun ->
             7
+
+
+toString : Date.Day -> String
+toString day =
+    case day of
+        Date.Mon ->
+            "Monday"
+
+        Date.Tue ->
+            "Tuesday"
+
+        Date.Wed ->
+            "Wednesday"
+
+        Date.Thu ->
+            "Thursday"
+
+        Date.Fri ->
+            "Friday"
+
+        Date.Sat ->
+            "Saturday"
+
+        Date.Sun ->
+            "Sunday"

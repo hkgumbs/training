@@ -71,8 +71,9 @@ view model =
         [ Tile [ width.is4 ]
             [ Parent [ viewSidebar model.name model.plan ] ]
         , Tile [ width.is8, vertical ] <|
-            List.map viewWeek <|
-                Movement.generate 6 model.plan
+            List.map2 viewWeek
+                (color.primary :: List.repeat 5 color.light)
+                (Movement.generate 6 model.plan)
         ]
 
 
@@ -82,34 +83,60 @@ viewSidebar name { schedule } =
         [ title name
         , field []
             [ label "Schedule"
-            , dayOfWeek schedule Date.Mon "Monday"
-            , dayOfWeek schedule Date.Tue "Tuesday"
-            , dayOfWeek schedule Date.Wed "Wednesday"
-            , dayOfWeek schedule Date.Thu "Thursday"
-            , dayOfWeek schedule Date.Fri "Friday"
-            , dayOfWeek schedule Date.Sat "Saturday"
-            , dayOfWeek schedule Date.Sun "Sunday"
+            , dayOfWeek schedule Date.Mon
+            , dayOfWeek schedule Date.Tue
+            , dayOfWeek schedule Date.Wed
+            , dayOfWeek schedule Date.Thu
+            , dayOfWeek schedule Date.Fri
+            , dayOfWeek schedule Date.Sat
+            , dayOfWeek schedule Date.Sun
             ]
         ]
 
 
-dayOfWeek : List Date.Day -> Date.Day -> String -> Element Msg
-dayOfWeek schedule day name =
-    checkbox [ onCheck <| SetSchedule day ] (List.member day schedule) name
+dayOfWeek : List Date.Day -> Date.Day -> Element Msg
+dayOfWeek schedule day =
+    checkbox
+        [ onCheck <| SetSchedule day ]
+        (List.member day schedule)
+        (Days.toString day)
 
 
-viewWeek : List Movement.Movement -> Tile Msg
-viewWeek =
-    Tile [] << List.map viewMovement
+viewWeek : Attribute Msg -> List Movement.Movement -> Tile Msg
+viewWeek highlight =
+    Tile [] << List.map (viewMovement highlight)
 
 
-viewMovement : Movement.Movement -> Tile Msg
-viewMovement { sets, reps, load } =
+viewMovement : Attribute Msg -> Movement.Movement -> Tile Msg
+viewMovement highlight { name, sets, reps, load } =
     Parent
         [ notification
-            [ color.primary ]
-            [ text "__DAY__" ]
+            [ highlight ]
+            [ columns
+                [ Column []
+                    [ subtitle name
+                    , text "Sets "
+                    , bold <| toString sets
+                    , br
+                    , text "Reps "
+                    , bold <| toString reps
+                    , br
+                    , text "Load "
+                    , bold <| loadString load
+                    ]
+                ]
+            ]
         ]
+
+
+loadString : Movement.Load -> String
+loadString load =
+    case load of
+        Movement.Kgs n ->
+            toString n ++ " kgs"
+
+        Movement.Lbs n ->
+            toString n ++ " lbs"
 
 
 onInt : (Int -> msg) -> Attribute msg

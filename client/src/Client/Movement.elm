@@ -24,7 +24,8 @@ type Seed
 
 
 type alias Movement =
-    { sets : Int
+    { name : String
+    , sets : Int
     , reps : Int
     , load : Load
     }
@@ -54,7 +55,8 @@ generate : Int -> Plan -> List (List Movement)
 generate weeksToProject plan =
     List.repeat weeksToProject <|
         List.repeat (List.length plan.schedule)
-            { sets = 1
+            { name = "Deadlift"
+            , sets = 1
             , reps = 1
             , load = Kgs 1
             }

@@ -6,7 +6,9 @@ module Bulma
         , Tile(..)
         , ancestor
         , background
+        , bold
         , box
+        , br
         , checkbox
         , color
         , columns
@@ -15,6 +17,7 @@ module Bulma
         , label
         , multiline
         , notification
+        , subtitle
         , text
         , title
         , toHtml
@@ -66,6 +69,11 @@ title raw =
     Element "h1" [ Attrs.class "title" ] [ text raw ]
 
 
+subtitle : String -> Element msg
+subtitle raw =
+    Element "h2" [ Attrs.class "subtitle" ] [ text raw ]
+
+
 box : List (Attribute msg) -> List (Element msg) -> Element msg
 box attrs =
     Element "div" (Attrs.class "box" :: attrs)
@@ -84,6 +92,11 @@ bold raw =
 text : String -> Element msg
 text =
     Text
+
+
+br : Element msg
+br =
+    Element "br" [] []
 
 
 
@@ -134,11 +147,9 @@ type Column msg
     = Column (List (Attribute msg)) (List (Element msg))
 
 
-columns : List (Attribute msg) -> List (Column msg) -> Element msg
-columns attrs columnTypes =
-    Element "div"
-        (Attrs.class "columns" :: attrs)
-        (List.map fromColumn columnTypes)
+columns : List (Column msg) -> Element msg
+columns columnTypes =
+    Element "div" [ Attrs.class "columns" ] (List.map fromColumn columnTypes)
 
 
 fromColumn : Column msg -> Element msg
@@ -250,3 +261,8 @@ background =
     , light = Attrs.class "has-background-light"
     , white = Attrs.class "has-background-white"
     }
+
+
+noOp : Attribute msg
+noOp =
+    Attrs.class ""
