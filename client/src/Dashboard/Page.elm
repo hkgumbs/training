@@ -1,8 +1,7 @@
 module Dashboard.Page exposing (Model, Msg, init, update, view)
 
+import Bulma exposing (..)
 import Global
-import Html exposing (..)
-import Html.Attributes exposing (..)
 import Task exposing (Task)
 
 
@@ -26,6 +25,6 @@ update context msg model =
             ( model, Cmd.none )
 
 
-view : Model -> Html msg
+view : Model -> Element msg
 view model =
-    div [] [ text "DASHBOARD" ]
+    box [] [ text "DASHBOARD" ]

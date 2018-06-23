@@ -1,11 +1,12 @@
 module Main exposing (..)
 
+import Bulma
 import Client.Page
 import Dashboard.Page
 import Global
 import Html
 import Js
-import Json.Decode exposing (Value)
+import Json.Decode
 import Navigation
 import Route
 import Task
@@ -23,7 +24,7 @@ type Page
     | Dashboard Dashboard.Page.Model
 
 
-init : Value -> Navigation.Location -> ( Model, Cmd Msg )
+init : Json.Decode.Value -> Navigation.Location -> ( Model, Cmd Msg )
 init value location =
     case Json.Decode.decodeValue Global.context value of
         Err _ ->
@@ -94,13 +95,13 @@ view { page } =
             Html.text ""
 
         Dashboard model ->
-            Dashboard.Page.view model
+            Bulma.toHtml [ Dashboard.Page.view model ]
 
         Client model ->
-            Client.Page.view model
+            Bulma.toHtml [ Client.Page.view model ]
 
 
-main : Program Value Model Msg
+main : Program Json.Decode.Value Model Msg
 main =
     Navigation.programWithFlags
         (Route.fromLocation >> SetRoute)
