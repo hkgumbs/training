@@ -1,36 +1,50 @@
 module Bulma
     exposing
-        ( Element
+        ( Attribute
+        , Column(..)
+        , Element
         , Tile(..)
+        , ancestor
         , background
         , box
+        , checkbox
+        , color
+        , columns
+        , field
+        , form
+        , label
+        , multiline
         , notification
         , text
-        , tile
         , title
         , toHtml
+        , vertical
         , width
         )
 
 import Html
-import Html.Attributes exposing (class)
+import Html.Attributes as Attrs
 
 
 type Element a
     = Text String
-    | Element String (List (Html.Attribute a)) (List (Element a))
+    | Element String (List (Attribute a)) (List (Element a))
 
 
-toHtml : List (Element msg) -> Html.Html msg
-toHtml children =
-    Html.div [] <| List.map topLevel children
+type alias Attribute a =
+    Html.Attribute a
+
+
+toHtml : (a -> msg) -> List (Element a) -> Html.Html msg
+toHtml f children =
+    Html.map f <| Html.div [] <| List.map topLevel children
 
 
 topLevel : Element msg -> Html.Html msg
 topLevel element =
     Html.section
-        [ class "section" ]
-        [ Html.div [ class "container" ] [ nested element ] ]
+        [ Attrs.class "section" ]
+        [ Html.div [ Attrs.class "container" ] [ nested element ] ]
 
 
 nested : Element msg -> Html.Html msg
@@ -48,18 +62,23 @@ nested element =
 
 
 title : String -> Element msg
-title name =
-    Element "h1" [ class "title" ] [ text name ]
+title raw =
+    Element "h1" [ Attrs.class "title" ] [ text raw ]
 
 
-box : List (Html.Attribute msg) -> List (Element msg) -> Element msg
+box : List (Attribute msg) -> List (Element msg) -> Element msg
 box attrs =
-    Element "div" (class "box" :: attrs)
+    Element "div" (Attrs.class "box" :: attrs)
 
 
-notification : List (Html.Attribute msg) -> List (Element msg) -> Element msg
+notification : List (Attribute msg) -> List (Element msg) -> Element msg
 notification attrs =
-    Element "div" (class "notification" :: attrs)
+    Element "div" (Attrs.class "notification" :: attrs)
+
+
+bold : String -> Element msg
+bold raw =
+    Element "strong" [] [ Text raw ]
 
 
 text : String -> Element msg
@@ -68,17 +87,87 @@ text =
 
 
 
--- TILE — GRIDS AND COLUMNS
+-- FORMS
+
+
+form :
+    { addons : Attribute msg
+    , addonsCentered : Attribute msg
+    , expanded : Attribute msg
+    }
+form =
+    { addons = Attrs.class "has-addons"
+    , addonsCentered = Attrs.class "has-addons-centered"
+    , expanded = Attrs.class "is-expanded"
+    }
+
+
+field : List (Attribute msg) -> List (Element msg) -> Element msg
+field attrs =
+    Element "div" (Attrs.class "field" :: attrs)
+
+
+label : String -> Element msg
+label name =
+    Element "label" [ Attrs.class "label" ] [ Text name ]
+
+
+checkbox : List (Attribute msg) -> Bool -> String -> Element msg
+checkbox attrs value name =
+    Element "div"
+        [ Attrs.class "control" ]
+        [ Element "label"
+            (Attrs.class "checkbox" :: attrs)
+            [ Element "input"
+                [ Attrs.type_ "checkbox", Attrs.checked value ]
+                []
+            , Text <| " " ++ name
+            ]
+        ]
+
+
+
+-- COLUMNS
+
+
+type Column msg
+    = Column (List (Attribute msg)) (List (Element msg))
+
+
+columns : List (Attribute msg) -> List (Column msg) -> Element msg
+columns attrs columnTypes =
+    Element "div"
+        (Attrs.class "columns" :: attrs)
+        (List.map fromColumn columnTypes)
+
+
+fromColumn : Column msg -> Element msg
+fromColumn (Column attrs children) =
+    Element "div" (Attrs.class "column" :: attrs) children
+
+
+multiline : Attribute msg
+multiline =
+    Attrs.class "multiline"
+
+
+
+-- TILE
 
 
 type Tile msg
-    = Tile (List (Html.Attribute msg)) (List (Tile msg))
-    | Children (List (Element msg))
+    = Tile (List (Attribute msg)) (List (Tile msg))
+    | Parent (List (Element msg))
 
 
-tile : List (Tile msg) -> Element msg
-tile tileTypes =
-    Element "div" [ class "tile is-ancestor" ] <| List.map tileHelp tileTypes
+vertical : Attribute msg
+vertical =
+    Attrs.class "is-vertical"
+
+
+ancestor : List (Tile msg) -> Element msg
+ancestor tileTypes =
+    Element "div" [ Attrs.class "tile is-ancestor" ] <| List.map tileHelp tileTypes
 
 
 tileHelp : Tile msg -> Element msg
@@ -86,60 +175,78 @@ tileHelp tileType =
     case tileType of
         Tile attrs children ->
             Element "div"
-                (class "tile" :: attrs)
+                (Attrs.class "tile" :: attrs)
                 (List.map tileHelp children)
 
-        Children elements ->
+        Parent children ->
             Element "div"
-                [ class "tile is-parent" ]
-                (List.map mergeChild elements)
+                [ Attrs.class "tile is-parent" ]
+                (List.map mergeChild children)
 
 
 mergeChild : Element msg -> Element msg
 mergeChild element =
     case element of
         Element name attrs children ->
-            Element name (class "tile is-child" :: attrs) children
+            Element name (Attrs.class "tile is-child" :: attrs) children
 
         Text _ ->
-            Element "div" [ class "tile is-child" ] [ element ]
+            Element "div" [ Attrs.class "tile is-child" ] [ element ]
 
 
 
--- ATTRIBUTES
+-- ATTRIBUTE HELPERS
 
 
 width :
-    { is1 : Html.Attribute msg
-    , is2 : Html.Attribute msg
-    , is3 : Html.Attribute msg
-    , is4 : Html.Attribute msg
-    , is5 : Html.Attribute msg
-    , is6 : Html.Attribute msg
-    , is7 : Html.Attribute msg
-    , is8 : Html.Attribute msg
-    , is9 : Html.Attribute msg
-    , is10 : Html.Attribute msg
-    , is11 : Html.Attribute msg
-    , is12 : Html.Attribute msg
+    { is1 : Attribute msg
+    , is2 : Attribute msg
+    , is3 : Attribute msg
+    , is4 : Attribute msg
+    , is5 : Attribute msg
+    , is6 : Attribute msg
+    , is7 : Attribute msg
+    , is8 : Attribute msg
+    , is9 : Attribute msg
+    , is10 : Attribute msg
+    , is11 : Attribute msg
+    , is12 : Attribute msg
     }
 width =
-    { is1 = class "is-1"
-    , is2 = class "is-2"
-    , is3 = class "is-3"
-    , is4 = class "is-4"
-    , is5 = class "is-5"
-    , is6 = class "is-6"
-    , is7 = class "is-7"
-    , is8 = class "is-8"
-    , is9 = class "is-9"
-    , is10 = class "is-10"
-    , is11 = class "is-11"
-    , is12 = class "is-12"
+    { is1 = Attrs.class "is-1"
+    , is2 = Attrs.class "is-2"
+    , is3 = Attrs.class "is-3"
+    , is4 = Attrs.class "is-4"
+    , is5 = Attrs.class "is-5"
+    , is6 = Attrs.class "is-6"
+    , is7 = Attrs.class "is-7"
+    , is8 = Attrs.class "is-8"
+    , is9 = Attrs.class "is-9"
+    , is10 = Attrs.class "is-10"
+    , is11 = Attrs.class "is-11"
+    , is12 = Attrs.class "is-12"
     }
 
 
-background : { light : Html.Attribute msg }
+color :
+    { light : Attribute msg
+    , primary : Attribute msg
+    , white : Attribute msg
+    }
+color =
+    { primary = Attrs.class "is-primary"
+    , light = Attrs.class "is-light"
+    , white = Attrs.class "is-white"
+    }
+
+
+background :
+    { light : Attribute msg
+    , primary : Attribute msg
+    , white : Attribute msg
+    }
 background =
-    { light = class "has-background-light"
+    { primary = Attrs.class "has-background-primary"
+    , light = Attrs.class "has-background-light"
+    , white = Attrs.class "has-background-white"
     }

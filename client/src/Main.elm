@@ -42,22 +42,52 @@ type Msg
     | Error Global.Error
     | Logout
     | Loaded Page
+    | PageMsg PageMsg
+
+
+type PageMsg
+    = DashboardMsg Dashboard.Page.Msg
+    | ClientMsg Client.Page.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case ( msg, model.page ) of
-        ( SetRoute destination, _ ) ->
+    case msg of
+        SetRoute destination ->
             goTo destination model
 
-        ( Error Global.RequiresAuth, _ ) ->
+        Error Global.RequiresAuth ->
             ( model, Js.login )
 
-        ( Logout, _ ) ->
+        Logout ->
             ( model, Js.logout )
 
-        ( Loaded page, _ ) ->
+        Loaded page ->
             ( { model | page = page }, Cmd.none )
+
+        PageMsg pageMsg ->
+            updatePage model.context pageMsg model.page
+                |> mapBoth (\page -> { model | page = page }) (Cmd.map PageMsg)
+
+
+updatePage : Global.Context -> PageMsg -> Page -> ( Page, Cmd PageMsg )
+updatePage context msg page =
+    case ( msg, page ) of
+        ( DashboardMsg pageMsg, Dashboard model ) ->
+            Dashboard.Page.update context pageMsg model
+                |> mapBoth Dashboard (Cmd.map DashboardMsg)
+
+        ( ClientMsg pageMsg, Client model ) ->
+            Client.Page.update context pageMsg model
+                |> mapBoth Client (Cmd.map ClientMsg)
+
+        _ ->
+            ( page, Cmd.none )
+
+
+mapBoth : (a -> c) -> (b -> d) -> ( a, b ) -> ( c, d )
+mapBoth f g =
+    Tuple.mapFirst f >> Tuple.mapSecond g
 
 
 goTo : Maybe Route.Route -> Model -> ( Model, Cmd Msg )
@@ -90,15 +120,16 @@ load page result =
 
 view : Model -> Html.Html Msg
 view { page } =
-    case page of
-        Blank ->
-            Html.text ""
+    Html.map PageMsg <|
+        case page of
+            Blank ->
+                Html.text ""
 
-        Dashboard model ->
-            Bulma.toHtml [ Dashboard.Page.view model ]
+            Dashboard model ->
+                Bulma.toHtml DashboardMsg [ Dashboard.Page.view model ]
 
-        Client model ->
-            Bulma.toHtml [ Client.Page.view model ]
+            Client model ->
+                Bulma.toHtml ClientMsg [ Client.Page.view model ]
 
 
 main : Program Json.Decode.Value Model Msg
