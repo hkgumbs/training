@@ -9,6 +9,7 @@ import Global
 import Html.Events exposing (..)
 import Json.Decode as D
 import Task exposing (Task)
+import TestData
 
 
 type alias Model =
@@ -26,7 +27,7 @@ type alias Client =
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map (Model True 24) getClient
+    Task.map (Model True 6) getClient
 
 
 getClient : Task Global.Error Client
@@ -37,67 +38,7 @@ getClient =
                 (D.field "name" D.string)
                 (D.field "plan" Movement.plan)
     in
-    case D.decodeString decoder """
-        { "name": "Mrs. Incredible"
-        , "plan":
-            { "schedule": "MWF"
-            , "exercises":
-                [ { "name": "Deadlift"
-                  , "type": "HIP_DOMINENT"
-                  , "plane_of_motion": "SAGGITAL"
-                  , "joint_action": "MULTI"
-                  , "progressions":
-                      [ { "name": "1/2 Foam Roller Hamstring Stretch"
-                        , "sets": 1
-                        , "reps": 15
-                        , "load": null
-                        , "rest": 0
-                        , "progression_rate": 4
-                        , "minimum_fms": 1
-                        , "option": "MOVEMENT_PREP"
-                        }
-                      , { "name": "Active Straight Leg Raise With Assist "
-                        , "sets": 1
-                        , "reps": 12
-                        , "load": null
-                        , "rest": 0
-                        , "progression_rate": 3
-                        , "minimum_fms": 1
-                        , "option": "MOVEMENT_PREP"
-                        }
-                      , { "name": "Active Straight Leg Raise Without Assist "
-                        , "sets": 1
-                        , "reps": 12
-                        , "load": null
-                        , "rest": 0
-                        , "progression_rate": 2
-                        , "minimum_fms": 1
-                        , "option": "MOVEMENT_PREP"
-                        }
-                      , { "name": "Glute Bridges on Back"
-                        , "sets": 1
-                        , "reps": 15
-                        , "load": null
-                        , "rest": 0
-                        , "progression_rate": 2
-                        , "minimum_fms": 1
-                        , "option": "MOVEMENT_PREP"
-                        }
-                      , { "name": "Foam Roll Hip Hinge"
-                        , "sets": 2
-                        , "reps": 20
-                        , "load": null
-                        , "rest": 30
-                        , "progression_rate": 2
-                        , "minimum_fms": 1
-                        , "option": "RESISTANCE_TRAINING"
-                        }
-                      ]
-                  }
-                ]
-            }
-        }
-        """ of
+    case D.decodeString decoder TestData.client of
         Ok client ->
             Task.succeed client
 
@@ -109,6 +50,7 @@ type Msg
     = NoOp
     | ToggleSidebar
     | SetSchedule Date.Day
+    | LoadMore
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -122,6 +64,9 @@ update context msg model =
 
         SetSchedule day ->
             ( { model | client = adjustSchedule day model.client }, Cmd.none )
+
+        LoadMore ->
+            ( { model | weeksToProject = 6 + model.weeksToProject }, Cmd.none )
 
 
 adjustSchedule : Date.Day -> Client -> Client
@@ -218,8 +163,8 @@ dayOfWeek schedule day =
 viewSchedule : Int -> Client -> Tile Msg
 viewSchedule weeksToProject client =
     Tile [ vertical ] <|
-        List.map viewWeek
-            (Movement.project weeksToProject client.plan)
+        List.map viewWeek (Movement.project weeksToProject client.plan)
+            ++ [ Parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
 
 
 viewWeek : List Movement.Movement -> Tile Msg
