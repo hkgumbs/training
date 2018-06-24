@@ -26,7 +26,7 @@ type alias Client =
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map (Model True 6) getClient
+    Task.map (Model True 24) getClient
 
 
 getClient : Task Global.Error Client
@@ -46,7 +46,7 @@ getClient =
                   , "type": "HIP_DOMINENT"
                   , "plane_of_motion": "SAGGITAL"
                   , "joint_action": "MULTI"
-                  , "movements":
+                  , "progressions":
                       [ { "name": "1/2 Foam Roller Hamstring Stretch"
                         , "sets": 1
                         , "reps": 15
@@ -54,7 +54,7 @@ getClient =
                         , "rest": 0
                         , "progression_rate": 4
                         , "minimum_fms": 1
-                        , "option": "movement_prep"
+                        , "option": "MOVEMENT_PREP"
                         }
                       , { "name": "Active Straight Leg Raise With Assist "
                         , "sets": 1
@@ -63,7 +63,34 @@ getClient =
                         , "rest": 0
                         , "progression_rate": 3
                         , "minimum_fms": 1
-                        , "option": "movement_prep"
+                        , "option": "MOVEMENT_PREP"
+                        }
+                      , { "name": "Active Straight Leg Raise Without Assist "
+                        , "sets": 1
+                        , "reps": 12
+                        , "load": null
+                        , "rest": 0
+                        , "progression_rate": 2
+                        , "minimum_fms": 1
+                        , "option": "MOVEMENT_PREP"
+                        }
+                      , { "name": "Glute Bridges on Back"
+                        , "sets": 1
+                        , "reps": 15
+                        , "load": null
+                        , "rest": 0
+                        , "progression_rate": 2
+                        , "minimum_fms": 1
+                        , "option": "MOVEMENT_PREP"
+                        }
+                      , { "name": "Foam Roll Hip Hinge"
+                        , "sets": 2
+                        , "reps": 20
+                        , "load": null
+                        , "rest": 30
+                        , "progression_rate": 2
+                        , "minimum_fms": 1
+                        , "option": "RESISTANCE_TRAINING"
                         }
                       ]
                   }
@@ -191,27 +218,30 @@ dayOfWeek schedule day =
 viewSchedule : Int -> Client -> Tile Msg
 viewSchedule weeksToProject client =
     Tile [ vertical ] <|
-        List.map2 viewWeek
-            (List.repeat weeksToProject color.light)
-            (Movement.generate weeksToProject client.plan)
+        List.map viewWeek
+            (Movement.project weeksToProject client.plan)
 
 
-viewWeek : Attribute Msg -> List Movement.Movement -> Tile Msg
-viewWeek highlight =
-    Tile [] << List.map (viewMovement highlight)
+viewWeek : List Movement.Movement -> Tile Msg
+viewWeek =
+    Tile [] << List.map viewMovement
 
 
-viewMovement : Attribute Msg -> Movement.Movement -> Tile Msg
-viewMovement highlight { name, sets, reps, load } =
+viewMovement : Movement.Movement -> Tile Msg
+viewMovement movement =
     Parent
         [ notification
-            [ highlight ]
+            [ if movement.isProgression then
+                color.info
+              else
+                color.light
+            ]
             [ rows
-                [ subtitle name
+                [ subtitle movement.name
                 , level
-                    [ [ viewAmount sets "set" ]
-                    , [ viewAmount reps "rep" ]
-                    , [ viewLoad load ]
+                    [ [ viewAmount movement.sets "set" ]
+                    , [ viewAmount movement.reps "rep" ]
+                    , [ viewLoad movement.load ]
                     ]
                 ]
             ]
@@ -227,17 +257,20 @@ viewAmount n unit =
         ]
 
 
-viewLoad : Movement.Load -> Element msg
+viewLoad : Maybe Exercise.Load -> Element msg
 viewLoad load =
     let
         toElement n unit =
             bold <| toString n ++ " " ++ pluralize n unit
     in
     case load of
-        Movement.Kgs n ->
+        Nothing ->
+            empty
+
+        Just (Exercise.Kgs n) ->
             toElement n "kg"
 
-        Movement.Lbs n ->
+        Just (Exercise.Lbs n) ->
             toElement n "lb"
 
 

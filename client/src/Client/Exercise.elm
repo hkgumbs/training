@@ -2,7 +2,9 @@ module Client.Exercise
     exposing
         ( Exercise
         , JointAction(..)
+        , Load(..)
         , PlaneOfMotion(..)
+        , Progression
         , Type(..)
         , exercise
         , jointActionString
@@ -18,6 +20,7 @@ type alias Exercise =
     , type_ : Type
     , planeOfMotion : PlaneOfMotion
     , jointAction : JointAction
+    , progressions : List Progression
     }
 
 
@@ -40,13 +43,36 @@ type JointAction
     = Multi
 
 
+type alias Progression =
+    { name : String
+    , sets : Int
+    , reps : Int
+    , load : Maybe Load
+    , rest : Int
+    , progressionRate : Int
+    , minimumFms : Maybe Int
+    , option : Option
+    }
+
+
+type Load
+    = Kgs Int
+    | Lbs Int
+
+
+type Option
+    = Prep
+    | ResistanceTraining
+
+
 exercise : D.Decoder Exercise
 exercise =
-    D.map4 Exercise
+    D.map5 Exercise
         (D.field "name" D.string)
         (D.field "type" <| parse "TYPE" type_)
         (D.field "plane_of_motion" <| parse "PLANE OF MOTION" planeOfMotion)
         (D.field "joint_action" <| parse "JOINT ACTION" jointAction)
+        (D.field "progressions" <| D.list progression)
 
 
 type_ : String -> Maybe Type
@@ -95,6 +121,45 @@ jointAction str =
     case str of
         "MULTI" ->
             Just Multi
+
+        _ ->
+            Nothing
+
+
+progression : D.Decoder Progression
+progression =
+    D.map8 Progression
+        (D.field "name" D.string)
+        (D.field "sets" D.int)
+        (D.field "reps" D.int)
+        (D.field "load" <| D.nullable <| parse "LOAD" load)
+        (D.field "rest" D.int)
+        (D.field "progression_rate" D.int)
+        (D.field "minimum_fms" <| D.nullable D.int)
+        (D.field "option" <| parse "OPTION" option)
+
+
+load : String -> Maybe Load
+load str =
+    case String.split " " str of
+        [ n, "LBS" ] ->
+            String.toInt n |> Result.toMaybe |> Maybe.map Lbs
+
+        [ n, "KGS" ] ->
+            String.toInt n |> Result.toMaybe |> Maybe.map Kgs
+
+        _ ->
+            Nothing
+
+
+option : String -> Maybe Option
+option str =
+    case str of
+        "MOVEMENT_PREP" ->
+            Just Prep
+
+        "RESISTANCE_TRAINING" ->
+            Just ResistanceTraining
 
         _ ->
             Nothing

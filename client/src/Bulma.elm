@@ -99,7 +99,7 @@ title raw =
 
 subtitle : String -> Element msg
 subtitle raw =
-    Element "h2" [ Attrs.class "subtitle" ] [ text raw ]
+    Element "h2" [ Attrs.class "subtitle has-text-weight-semibold" ] [ text raw ]
 
 
 box : List (Attribute msg) -> List (Element msg) -> Element msg
@@ -139,7 +139,7 @@ tags attrs =
 
 bold : String -> Element msg
 bold raw =
-    Element "strong" [] [ Text raw ]
+    Element "span" [ Attrs.class "has-text-weight-bold" ] [ Text raw ]
 
 
 text : String -> Element msg
@@ -393,12 +393,14 @@ width =
 
 color :
     { primary : Attribute msg
+    , info : Attribute msg
     , danger : Attribute msg
     , light : Attribute msg
     , white : Attribute msg
     }
 color =
     { primary = Attrs.class "is-primary"
+    , info = Attrs.class "is-info"
     , danger = Attrs.class "is-danger"
     , light = Attrs.class "is-light"
     , white = Attrs.class "is-white"
