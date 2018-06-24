@@ -25,6 +25,6 @@ update context msg model =
             ( model, Cmd.none )
 
 
-view : Model -> Element msg
+view : Model -> Element a Msg
 view model =
     box [] [ text "DASHBOARD" ]

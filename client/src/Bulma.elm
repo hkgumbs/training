@@ -1,10 +1,10 @@
 module Bulma
     exposing
         ( Attribute
-        , Column(..)
+        , Column
         , Element
         , Icon
-        , Tile(..)
+        , Tile
         , ancestor
         , arrowLeft
         , arrowRight
@@ -14,6 +14,7 @@ module Bulma
         , br
         , button
         , color
+        , column
         , columns
         , concat
         , control
@@ -31,6 +32,7 @@ module Bulma
         , nbsp
         , notification
         , outline
+        , parent
         , placeholder
         , rows
         , search
@@ -40,6 +42,7 @@ module Bulma
         , tags
         , text
         , textInput
+        , tile
         , title
         , toHtml
         , toggle
@@ -53,29 +56,29 @@ import Html
 import Html.Attributes as Attrs
 
 
-type Element a
+type Element tag msg
     = Text String
-    | Element String (List (Attribute a)) (List (Element a))
-    | Concat (List (Element a))
+    | Element String (List (Attribute msg)) (List (Element tag msg))
+    | Concat (List (Element tag msg))
 
 
 type alias Attribute a =
     Html.Attribute a
 
 
-toHtml : (a -> msg) -> List (Element a) -> Html.Html msg
+toHtml : (a -> msg) -> List (Element tag a) -> Html.Html msg
 toHtml f children =
     Html.map f <| Html.div [] <| List.map topLevel children
 
 
-topLevel : Element msg -> Html.Html msg
+topLevel : Element tag msg -> Html.Html msg
 topLevel element =
     Html.section
         [ Attrs.class "section" ]
         [ Html.div [ Attrs.class "container" ] (nested element) ]
 
 
-nested : Element msg -> List (Html.Html msg)
+nested : Element tag msg -> List (Html.Html msg)
 nested element =
     case element of
         Text raw ->
@@ -92,28 +95,28 @@ nested element =
 -- ELEMENTS
 
 
-title : String -> Element msg
+title : String -> Element tag msg
 title raw =
     Element "h1" [ Attrs.class "title" ] [ text raw ]
 
 
-subtitle : String -> Element msg
+subtitle : String -> Element tag msg
 subtitle raw =
     Element "h2" [ Attrs.class "subtitle has-text-weight-semibold" ] [ text raw ]
 
 
-box : List (Attribute msg) -> List (Element msg) -> Element msg
+box : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
 box attrs =
     Element "div" (Attrs.class "box" :: attrs)
 
 
-level : List (List (Element msg)) -> Element msg
+level : List (List (Element tag msg)) -> Element tag msg
 level =
     Element "div" [ Attrs.class "level" ]
         << List.map (Element "div" [ Attrs.class "level-item" ])
 
 
-levelLeftRight : List (Element msg) -> List (Element msg) -> Element msg
+levelLeftRight : List (Element tag msg) -> List (Element tag msg) -> Element tag msg
 levelLeftRight lefts rights =
     Element "div"
         [ Attrs.class "level" ]
@@ -122,57 +125,57 @@ levelLeftRight lefts rights =
         ]
 
 
-notification : List (Attribute msg) -> List (Element msg) -> Element msg
+notification : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
 notification attrs =
     Element "div" (Attrs.class "notification" :: attrs)
 
 
-tag : List (Attribute msg) -> String -> Element msg
+tag : List (Attribute msg) -> String -> Element tag msg
 tag attrs name =
     Element "span" (Attrs.class "tag" :: attrs) [ text name ]
 
 
-tags : List (Attribute msg) -> List (Element msg) -> Element msg
+tags : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
 tags attrs =
     Element "div" (Attrs.class "tags" :: attrs)
 
 
-bold : String -> Element msg
+bold : String -> Element tag msg
 bold raw =
     Element "span" [ Attrs.class "has-text-weight-bold" ] [ Text raw ]
 
 
-text : String -> Element msg
+text : String -> Element tag msg
 text =
     Text
 
 
-nbsp : Element msg
+nbsp : Element tag msg
 nbsp =
     Text <| String.fromChar <| Char.fromCode 0xA0
 
 
-br : Element msg
+br : Element tag msg
 br =
     Element "br" [] []
 
 
-hr : Element msg
+hr : Element tag msg
 hr =
     Element "hr" [] []
 
 
-concat : List (Element msg) -> Element msg
+concat : List (Element tag msg) -> Element tag msg
 concat =
     Concat
 
 
-empty : Element msg
+empty : Element tag msg
 empty =
     Concat []
 
 
-toggle : Bool -> List (Element msg) -> List (Element msg) -> Element msg
+toggle : Bool -> List (Element tag msg) -> List (Element tag msg) -> Element tag msg
 toggle condition whenVisible whenHidden =
     if condition then
         Element "show" [] whenVisible
@@ -196,27 +199,27 @@ form =
     }
 
 
-field : List (Attribute msg) -> List (Element msg) -> Element msg
+field : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
 field attrs =
     Element "div" (Attrs.class "field" :: attrs)
 
 
-label : String -> Element msg
+label : String -> Element tag msg
 label name =
     Element "label" [ Attrs.class "label" ] [ Text name ]
 
 
-control : List (Attribute msg) -> List (Element msg) -> Element msg
+control : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
 control attrs =
     Element "div" (Attrs.class "control" :: attrs)
 
 
-textInput : List (Attribute msg) -> Element msg
+textInput : List (Attribute msg) -> Element tag msg
 textInput attrs =
     Element "input" (Attrs.class "input" :: attrs) []
 
 
-button : List (Attribute msg) -> List (Element msg) -> Element msg
+button : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
 button attrs =
     Element "button" (Attrs.class "button" :: attrs)
 
@@ -250,23 +253,23 @@ icons =
 -- COLUMNS
 
 
-type Column msg
-    = Column (List (Attribute msg)) (List (Element msg))
+type Column
+    = Column
 
 
-rows : List (Element msg) -> Element msg
+rows : List (Element tag msg) -> Element tag msg
 rows =
-    columns << List.singleton << Column []
+    columns << List.singleton << column []
 
 
-columns : List (Column msg) -> Element msg
-columns columnTypes =
-    Element "div" [ Attrs.class "columns" ] (List.map fromColumn columnTypes)
+column : List (Attribute msg) -> List (Element tag msg) -> Element Column msg
+column attrs =
+    eraseType << Element "div" (Attrs.class "column" :: attrs)
 
 
-fromColumn : Column msg -> Element msg
-fromColumn (Column attrs children) =
-    Element "div" (Attrs.class "column" :: attrs) children
+columns : List (Element Column msg) -> Element tag msg
+columns =
+    eraseType << Element "div" [ Attrs.class "columns" ]
 
 
 multiline : Attribute msg
@@ -278,43 +281,38 @@ multiline =
 -- TILE
 
 
-type Tile msg
-    = Tile (List (Attribute msg)) (List (Tile msg))
-    | Parent (List (Element msg))
+type Tile
+    = Tile
 
 
-vertical : Attribute msg
-vertical =
-    Attrs.class "is-vertical"
+ancestor : List (Element Tile msg) -> Element tag msg
+ancestor =
+    eraseType << Element "div" [ Attrs.class "tile is-ancestor" ]
 
 
-ancestor : List (Tile msg) -> Element msg
-ancestor tileTypes =
-    Element "div" [ Attrs.class "tile is-ancestor" ] <| List.map tileHelp tileTypes
+tile : List (Attribute msg) -> List (Element Tile msg) -> Element Tile msg
+tile attrs =
+    Element "div" (Attrs.class "tile" :: attrs)
 
 
-tileHelp : Tile msg -> Element msg
-tileHelp tileType =
-    case tileType of
-        Tile attrs children ->
-            Element "div"
-                (Attrs.class "tile" :: attrs)
-                (List.map tileHelp children)
-
-        Parent children ->
-            Element "div"
-                [ Attrs.class "tile is-parent" ]
-                (List.map mergeChild children)
+parent : List (Element Tile msg) -> Element Tile msg
+parent children =
+    Element "div" [ Attrs.class "tile is-parent" ] (List.map mergeChild children)
 
 
-mergeChild : Element msg -> Element msg
+mergeChild : Element Tile msg -> Element Tile msg
 mergeChild element =
     case element of
         Element name attrs children ->
             Element name (Attrs.class "tile is-child" :: attrs) children
 
         _ ->
-            Element "div" [ Attrs.class "tile is-child" ] [ element ]
+            eraseType <| Element "div" [ Attrs.class "tile is-child" ] [ element ]
+
+
+vertical : Attribute msg
+vertical =
+    Attrs.class "is-vertical"
 
 
 
@@ -325,7 +323,7 @@ type Icon
     = Icon String
 
 
-icon : Icon -> Element msg
+icon : Icon -> Element tag msg
 icon (Icon name) =
     Element "span"
         [ Attrs.class "icon" ]
@@ -419,3 +417,16 @@ background =
     , light = Attrs.class "has-background-light"
     , white = Attrs.class "has-background-white"
     }
+
+
+eraseType : Element a msg -> Element b msg
+eraseType element =
+    case element of
+        Text raw ->
+            Text raw
+
+        Element name attrs children ->
+            Element name attrs <| List.map eraseType children
+
+        Concat children ->
+            Concat <| List.map eraseType children

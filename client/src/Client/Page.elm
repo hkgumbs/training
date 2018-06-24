@@ -81,11 +81,11 @@ adjustSchedule day ({ plan } as client) =
     { client | plan = { plan | schedule = schedule } }
 
 
-view : Model -> Element Msg
+view : Model -> Element a Msg
 view model =
     ancestor
-        [ Tile [ vertical ]
-            [ Parent
+        [ tile [ vertical ]
+            [ parent
                 [ levelLeftRight
                     [ button [ onClick ToggleSidebar ]
                         [ toggle model.showSidebar
@@ -95,7 +95,7 @@ view model =
                     ]
                     []
                 ]
-            , Tile [] <|
+            , tile [] <|
                 if model.showSidebar then
                     [ viewSidebar model.client
                     , viewSchedule model.weeksToProject model.client
@@ -107,14 +107,14 @@ view model =
         ]
 
 
-viewSidebar : Client -> Tile Msg
+viewSidebar : Client -> Element Tile Msg
 viewSidebar client =
     let
         days =
             [ Date.Mon, Date.Tue, Date.Wed, Date.Thu, Date.Fri, Date.Sat, Date.Sun ]
     in
-    Tile [ width.is4 ]
-        [ Parent
+    tile [ width.is4 ]
+        [ parent
             [ notification [ color.white ]
                 [ title client.name
                 , label "Schedule"
@@ -135,7 +135,7 @@ viewSidebar client =
         ]
 
 
-viewExercise : Exercise.Exercise -> Element Msg
+viewExercise : Exercise.Exercise -> Element a Msg
 viewExercise exercise =
     box []
         [ levelLeftRight
@@ -149,7 +149,7 @@ viewExercise exercise =
         ]
 
 
-dayOfWeek : List Date.Day -> Date.Day -> Element Msg
+dayOfWeek : List Date.Day -> Date.Day -> Element a Msg
 dayOfWeek schedule day =
     control []
         [ button
@@ -160,21 +160,21 @@ dayOfWeek schedule day =
         ]
 
 
-viewSchedule : Int -> Client -> Tile Msg
+viewSchedule : Int -> Client -> Element Tile Msg
 viewSchedule weeksToProject client =
-    Tile [ vertical ] <|
+    tile [ vertical ] <|
         List.map viewWeek (Movement.project weeksToProject client.plan)
-            ++ [ Parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
+            ++ [ parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
 
 
-viewWeek : List Movement.Movement -> Tile Msg
+viewWeek : List Movement.Movement -> Element Tile Msg
 viewWeek =
-    Tile [] << List.map viewMovement
+    tile [] << List.map viewMovement
 
 
-viewMovement : Movement.Movement -> Tile Msg
+viewMovement : Movement.Movement -> Element Tile Msg
 viewMovement movement =
-    Parent
+    parent
         [ notification
             [ if movement.isProgression then
                 color.info
@@ -193,7 +193,7 @@ viewMovement movement =
         ]
 
 
-viewAmount : Int -> String -> Element msg
+viewAmount : Int -> String -> Element a msg
 viewAmount n unit =
     concat
         [ bold <| toString n
@@ -202,7 +202,7 @@ viewAmount n unit =
         ]
 
 
-viewLoad : Maybe Exercise.Load -> Element msg
+viewLoad : Maybe Exercise.Load -> Element a msg
 viewLoad load =
     let
         toElement n unit =
