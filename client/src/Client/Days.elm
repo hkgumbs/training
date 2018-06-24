@@ -69,22 +69,22 @@ toString : Date.Day -> String
 toString day =
     case day of
         Date.Mon ->
-            "Monday"
+            "M"
 
         Date.Tue ->
-            "Tuesday"
+            "Tu"
 
         Date.Wed ->
-            "Wednesday"
+            "W"
 
         Date.Thu ->
-            "Thursday"
+            "Th"
 
         Date.Fri ->
-            "Friday"
+            "F"
 
         Date.Sat ->
-            "Saturday"
+            "Sa"
 
         Date.Sun ->
-            "Sunday"
+            "Su"

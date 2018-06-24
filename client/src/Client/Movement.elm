@@ -3,24 +3,27 @@ module Client.Movement
         ( Load(..)
         , Movement
         , Plan
-        , Seed
         , generate
         , plan
         )
 
 import Client.Days as Days
+import Client.Exercise as Exercise
 import Date
 import Json.Decode as D
 
 
 type alias Plan =
-    { seed : Seed
-    , schedule : List Date.Day
+    { schedule : List Date.Day
+    , exercises : List Exercise.Exercise
     }
 
 
-type Seed
-    = Seed
+plan : D.Decoder Plan
+plan =
+    D.map2 Plan
+        (D.field "schedule" Days.days)
+        (D.field "exercises" <| D.list Exercise.exercise)
 
 
 type alias Movement =
@@ -34,21 +37,6 @@ type alias Movement =
 type Load
     = Kgs Int
     | Lbs Int
-
-
-
--- JSON
-
-
-plan : D.Decoder Plan
-plan =
-    D.map2 Plan
-        (D.succeed Seed)
-        (D.field "schedule" Days.days)
-
-
-
--- VIEW
 
 
 generate : Int -> Plan -> List (List Movement)

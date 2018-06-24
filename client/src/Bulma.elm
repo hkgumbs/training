@@ -3,28 +3,52 @@ module Bulma
         ( Attribute
         , Column(..)
         , Element
+        , Icon
         , Tile(..)
         , ancestor
+        , arrowLeft
+        , arrowRight
         , background
         , bold
         , box
         , br
-        , checkbox
+        , button
         , color
         , columns
+        , concat
+        , control
+        , delete
+        , empty
         , field
         , form
+        , hr
+        , icon
+        , icons
         , label
+        , level
+        , levelLeftRight
         , multiline
+        , nbsp
         , notification
+        , outline
+        , placeholder
+        , rows
+        , search
+        , selected
         , subtitle
+        , tag
+        , tags
         , text
+        , textInput
         , title
         , toHtml
+        , toggle
+        , user
         , vertical
         , width
         )
 
+import Char
 import Html
 import Html.Attributes as Attrs
 
@@ -32,6 +56,7 @@ import Html.Attributes as Attrs
 type Element a
     = Text String
     | Element String (List (Attribute a)) (List (Element a))
+    | Concat (List (Element a))
 
 
 type alias Attribute a =
@@ -47,17 +72,20 @@ topLevel : Element msg -> Html.Html msg
 topLevel element =
     Html.section
         [ Attrs.class "section" ]
-        [ Html.div [ Attrs.class "container" ] [ nested element ] ]
+        [ Html.div [ Attrs.class "container" ] (nested element) ]
 
 
-nested : Element msg -> Html.Html msg
+nested : Element msg -> List (Html.Html msg)
 nested element =
     case element of
         Text raw ->
-            Html.text raw
+            [ Html.text raw ]
 
         Element name attrs children ->
-            Html.node name attrs <| List.map nested children
+            [ Html.node name attrs <| List.concatMap nested children ]
+
+        Concat children ->
+            List.concatMap nested children
 
 
 
@@ -79,9 +107,34 @@ box attrs =
     Element "div" (Attrs.class "box" :: attrs)
 
 
+level : List (List (Element msg)) -> Element msg
+level =
+    Element "div" [ Attrs.class "level" ]
+        << List.map (Element "div" [ Attrs.class "level-item" ])
+
+
+levelLeftRight : List (Element msg) -> List (Element msg) -> Element msg
+levelLeftRight lefts rights =
+    Element "div"
+        [ Attrs.class "level" ]
+        [ Element "div" [ Attrs.class "level-left" ] lefts
+        , Element "div" [ Attrs.class "level-right" ] rights
+        ]
+
+
 notification : List (Attribute msg) -> List (Element msg) -> Element msg
 notification attrs =
     Element "div" (Attrs.class "notification" :: attrs)
+
+
+tag : List (Attribute msg) -> String -> Element msg
+tag attrs name =
+    Element "span" (Attrs.class "tag" :: attrs) [ text name ]
+
+
+tags : List (Attribute msg) -> List (Element msg) -> Element msg
+tags attrs =
+    Element "div" (Attrs.class "tags" :: attrs)
 
 
 bold : String -> Element msg
@@ -94,9 +147,37 @@ text =
     Text
 
 
+nbsp : Element msg
+nbsp =
+    Text <| String.fromChar <| Char.fromCode 0xA0
+
+
 br : Element msg
 br =
     Element "br" [] []
+
+
+hr : Element msg
+hr =
+    Element "hr" [] []
+
+
+concat : List (Element msg) -> Element msg
+concat =
+    Concat
+
+
+empty : Element msg
+empty =
+    Concat []
+
+
+toggle : Bool -> List (Element msg) -> List (Element msg) -> Element msg
+toggle condition whenVisible whenHidden =
+    if condition then
+        Element "show" [] whenVisible
+    else
+        Element "hide" [] whenHidden
 
 
 
@@ -125,18 +206,44 @@ label name =
     Element "label" [ Attrs.class "label" ] [ Text name ]
 
 
-checkbox : List (Attribute msg) -> Bool -> String -> Element msg
-checkbox attrs value name =
-    Element "div"
-        [ Attrs.class "control" ]
-        [ Element "label"
-            (Attrs.class "checkbox" :: attrs)
-            [ Element "input"
-                [ Attrs.type_ "checkbox", Attrs.checked value ]
-                []
-            , Text <| " " ++ name
-            ]
-        ]
+control : List (Attribute msg) -> List (Element msg) -> Element msg
+control attrs =
+    Element "div" (Attrs.class "control" :: attrs)
+
+
+textInput : List (Attribute msg) -> Element msg
+textInput attrs =
+    Element "input" (Attrs.class "input" :: attrs) []
+
+
+button : List (Attribute msg) -> List (Element msg) -> Element msg
+button attrs =
+    Element "button" (Attrs.class "button" :: attrs)
+
+
+placeholder : String -> Attribute msg
+placeholder =
+    Attrs.placeholder
+
+
+selected : Bool -> Attribute msg
+selected condition =
+    if condition then
+        Attrs.class "is-info is-selected"
+    else
+        Attrs.class ""
+
+
+outline : Attribute msg
+outline =
+    Attrs.class "is-outlined"
+
+
+icons : { left : Attribute msg, right : Attribute msg }
+icons =
+    { left = Attrs.class "has-icons-left"
+    , right = Attrs.class "has-icons-right"
+    }
 
 
 
@@ -145,6 +252,11 @@ checkbox attrs value name =
 
 type Column msg
     = Column (List (Attribute msg)) (List (Element msg))
+
+
+rows : List (Element msg) -> Element msg
+rows =
+    columns << List.singleton << Column []
 
 
 columns : List (Column msg) -> Element msg
@@ -201,8 +313,48 @@ mergeChild element =
         Element name attrs children ->
             Element name (Attrs.class "tile is-child" :: attrs) children
 
-        Text _ ->
+        _ ->
             Element "div" [ Attrs.class "tile is-child" ] [ element ]
+
+
+
+-- ICONS
+
+
+type Icon
+    = Icon String
+
+
+icon : Icon -> Element msg
+icon (Icon name) =
+    Element "span"
+        [ Attrs.class "icon" ]
+        [ Element "i" [ Attrs.class <| "fas fa-" ++ name ] [] ]
+
+
+user : Icon
+user =
+    Icon "user-circle"
+
+
+arrowLeft : Icon
+arrowLeft =
+    Icon "long-arrow-alt-left"
+
+
+arrowRight : Icon
+arrowRight =
+    Icon "long-arrow-alt-right"
+
+
+delete : Icon
+delete =
+    Icon "minus-circle"
+
+
+search : Icon
+search =
+    Icon "search"
 
 
 
@@ -240,29 +392,28 @@ width =
 
 
 color :
-    { light : Attribute msg
-    , primary : Attribute msg
+    { primary : Attribute msg
+    , danger : Attribute msg
+    , light : Attribute msg
     , white : Attribute msg
     }
 color =
     { primary = Attrs.class "is-primary"
+    , danger = Attrs.class "is-danger"
     , light = Attrs.class "is-light"
     , white = Attrs.class "is-white"
     }
 
 
 background :
-    { light : Attribute msg
-    , primary : Attribute msg
+    { primary : Attribute msg
+    , danger : Attribute msg
+    , light : Attribute msg
     , white : Attribute msg
     }
 background =
     { primary = Attrs.class "has-background-primary"
+    , danger = Attrs.class "has-background-danger"
     , light = Attrs.class "has-background-light"
     , white = Attrs.class "has-background-white"
     }
-
-
-noOp : Attribute msg
-noOp =
-    Attrs.class ""
