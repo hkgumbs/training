@@ -24,9 +24,9 @@ fromLocation location =
 route : Parser (Route -> a) a
 route =
     oneOf
-        [ map Dashboard <| s ""
+        [ map TokenRedirect <| custom "ID TOKEN" Global.parseToken
+        , map Dashboard <| s ""
         , map Client <| s "client" </> string
-        , map TokenRedirect <| custom "ID TOKEN" Global.parseToken
         ]
 
 

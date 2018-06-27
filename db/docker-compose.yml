@@ -20,6 +20,7 @@ services:
       PGRST_DB_URI: postgres://auth:secret@postgres:5432/postgres
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: anon
+      JWT_SECRET: your-256-bit-secret
     links:
       - database:postgres
 
