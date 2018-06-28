@@ -34,12 +34,10 @@ app.ports.outgoing.subscribe(function(msg) {
 function development() {
   const tokenRedirect = "/#id_token="
     + "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-    + ".eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI"
-    + "6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDI"
-    + "yLCJodHRwczovL3Bvc3RncmVzdC5jb20vcm9"
-    + "sZSI6IndlYiJ9.6kByi7RXOhiJHDrITWZbwXe2YPEfh-x_nrkcPffHqjQ";
+    + ".eyJyb2xlIjoid2ViIn0"
+    + ".OV5FRcM6dZTHQR5oF0hcbmjBZdN2j-1QD-TSQ0ErD04";
   return {
-    dbapi: 'localhost:3001',
+    dbapi: 'http://localhost:3001/',
     login: () => window.location = tokenRedirect,
     logout: () => window.location.reload(),
   };

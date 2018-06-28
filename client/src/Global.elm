@@ -59,14 +59,14 @@ findToken chunk =
             Nothing
 
 
-authorize : Context -> Http.Header
+authorize : Context -> List Http.Header
 authorize context =
     case context.auth of
         Nothing ->
-            Http.header "" ""
+            []
 
         Just (Token raw) ->
-            Http.header "Authorization" <| "Bearer " ++ raw
+            [ Http.header "Authorization" <| "Bearer " ++ raw ]
 
 
 

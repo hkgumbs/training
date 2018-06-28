@@ -13,14 +13,14 @@ services:
       - postgres-data:/var/lib/postgresql/data
 
   api:
-    image: postgrest/postgrest
+    image: postgrest/postgrest:v0.5.0.0
     ports:
       - "3001:3000"
     environment:
       PGRST_DB_URI: postgres://auth:secret@postgres:5432/postgres
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: anon
-      JWT_SECRET: your-256-bit-secret
+      PGRST_JWT_SECRET: reallyreallyreallyreallyverysafe
     links:
       - database:postgres
 

@@ -6,12 +6,12 @@ BEGIN;
 
   --
 
-  CREATE TABLE exercises (
+  CREATE TABLE public.exercises (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v1mc(),
     name TEXT NOT NULL
   );
 
-  CREATE TABLE movements (
+  CREATE TABLE public.movements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v1mc(),
     exercise_id UUID REFERENCES exercises,
     name TEXT NOT NULL,
@@ -21,7 +21,7 @@ BEGIN;
     load load_type
   );
 
-  CREATE TABLE exercise_features (
+  CREATE TABLE public.exercise_features (
     exercise_id UUID REFERENCES exercises,
     value text
   );
