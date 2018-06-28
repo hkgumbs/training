@@ -1,35 +1,20 @@
-module Client.Movement
-    exposing
-        ( Movement
-        , Plan
-        , plan
-        , project
-        )
+module Client.Movement exposing (Movement, Plan, project)
 
-import Client.Days as Days
-import Client.Exercise as Exercise
+import Client.Data as Data
 import Date
-import Json.Decode as D
 
 
 type alias Plan =
     { schedule : List Date.Day
-    , exercises : List Exercise.Exercise
+    , exercises : List Data.Exercise
     }
-
-
-plan : D.Decoder Plan
-plan =
-    D.map2 Plan
-        (D.field "schedule" Days.days)
-        (D.field "exercises" <| D.list Exercise.exercise)
 
 
 type alias Movement =
     { name : String
     , sets : Int
     , reps : Int
-    , load : Maybe Exercise.Load
+    , load : Maybe Data.Load
     , rest : Int
     , isProgression : Bool
     }
@@ -54,12 +39,12 @@ project weeksToProject plan =
         |> List.take weeksToProject
 
 
-projectExercise : Exercise.Exercise -> List Movement
+projectExercise : Data.Exercise -> List Movement
 projectExercise exercise =
     List.concatMap projectProgression exercise.progressions
 
 
-projectProgression : Exercise.Progression -> List Movement
+projectProgression : Data.Progression -> List Movement
 projectProgression progression =
     case
         List.repeat progression.progressionRate

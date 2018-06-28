@@ -1,4 +1,4 @@
-module Client.Exercise
+module Client.Data
     exposing
         ( Exercise
         , JointAction(..)
@@ -6,12 +6,15 @@ module Client.Exercise
         , PlaneOfMotion(..)
         , Progression
         , Type(..)
+        , dayString
+        , days
         , exercise
         , jointActionString
         , planeOfMotionString
         , typeString
         )
 
+import Date
 import Json.Decode as D
 
 
@@ -179,6 +182,42 @@ parse tag func =
         D.string
 
 
+days : D.Decoder (List Date.Day)
+days =
+    D.andThen (String.toList >> parseDay []) D.string
+
+
+parseDay : List Date.Day -> List Char -> D.Decoder (List Date.Day)
+parseDay acc chars =
+    case chars of
+        [] ->
+            D.succeed (List.reverse acc)
+
+        'M' :: rest ->
+            parseDay (Date.Mon :: acc) rest
+
+        'T' :: 'u' :: rest ->
+            parseDay (Date.Tue :: acc) rest
+
+        'W' :: rest ->
+            parseDay (Date.Wed :: acc) rest
+
+        'T' :: 'h' :: rest ->
+            parseDay (Date.Thu :: acc) rest
+
+        'F' :: rest ->
+            parseDay (Date.Fri :: acc) rest
+
+        'S' :: 'a' :: rest ->
+            parseDay (Date.Sat :: acc) rest
+
+        'S' :: 'u' :: rest ->
+            parseDay (Date.Sun :: acc) rest
+
+        _ ->
+            D.fail <| "`" ++ String.fromList chars ++ "` is not a valid DAY"
+
+
 
 -- TO STRING
 
@@ -223,3 +262,28 @@ jointActionString value =
     case value of
         Multi ->
             "multi-joint"
+
+
+dayString : Date.Day -> String
+dayString day =
+    case day of
+        Date.Mon ->
+            "M"
+
+        Date.Tue ->
+            "Tu"
+
+        Date.Wed ->
+            "W"
+
+        Date.Thu ->
+            "Th"
+
+        Date.Fri ->
+            "F"
+
+        Date.Sat ->
+            "Sa"
+
+        Date.Sun ->
+            "Su"

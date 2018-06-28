@@ -1,8 +1,7 @@
 module Client.Page exposing (Model, Msg, init, update, view)
 
 import Bulma exposing (..)
-import Client.Days as Days
-import Client.Exercise as Exercise
+import Client.Data as Data
 import Client.Movement as Movement
 import Date
 import Global
@@ -27,16 +26,20 @@ type alias Client =
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map (Model True 6) getClient
+    Task.map (Model True 6) (getClient context)
 
 
-getClient : Task Global.Error Client
-getClient =
+getClient : Global.Context -> Task Global.Error Client
+getClient context =
     let
         decoder =
             D.map2 Client
                 (D.field "name" D.string)
-                (D.field "plan" Movement.plan)
+                (D.field "plan" <|
+                    D.map2 Movement.Plan
+                        (D.field "schedule" Data.days)
+                        (D.field "exercises" <| D.list Data.exercise)
+                )
     in
     case D.decodeString decoder TestData.client of
         Ok client ->
@@ -109,19 +112,20 @@ view model =
 
 viewSidebar : Client -> Element Tile Msg
 viewSidebar client =
-    let
-        days =
-            [ Date.Mon, Date.Tue, Date.Wed, Date.Thu, Date.Fri, Date.Sat, Date.Sun ]
-    in
     tile [ width.is4 ]
         [ parent
             [ notification [ color.white ]
                 [ title client.name
                 , label "Schedule"
-                , field [ form.addons ] <|
-                    List.map
-                        (dayOfWeek client.plan.schedule)
-                        (List.sortBy Days.mondayFirst days)
+                , field [ form.addons ]
+                    [ dayOfWeek client.plan.schedule Date.Mon
+                    , dayOfWeek client.plan.schedule Date.Tue
+                    , dayOfWeek client.plan.schedule Date.Wed
+                    , dayOfWeek client.plan.schedule Date.Thu
+                    , dayOfWeek client.plan.schedule Date.Fri
+                    , dayOfWeek client.plan.schedule Date.Sat
+                    , dayOfWeek client.plan.schedule Date.Sun
+                    ]
                 , hr
                 , field []
                     [ label "Excercises"
@@ -135,16 +139,16 @@ viewSidebar client =
         ]
 
 
-viewExercise : Exercise.Exercise -> Element a Msg
+viewExercise : Data.Exercise -> Element a Msg
 viewExercise exercise =
     box []
         [ levelLeftRight
             [ subtitle exercise.name ]
             [ button [ color.danger, outline ] [ icon delete ] ]
         , tags []
-            [ tag [] <| Exercise.typeString exercise.type_
-            , tag [] <| Exercise.planeOfMotionString exercise.planeOfMotion
-            , tag [] <| Exercise.jointActionString exercise.jointAction
+            [ tag [] <| Data.typeString exercise.type_
+            , tag [] <| Data.planeOfMotionString exercise.planeOfMotion
+            , tag [] <| Data.jointActionString exercise.jointAction
             ]
         ]
 
@@ -156,7 +160,7 @@ dayOfWeek schedule day =
             [ selected <| List.member day schedule
             , onClick <| SetSchedule day
             ]
-            [ text <| Days.toString day ]
+            [ text <| Data.dayString day ]
         ]
 
 
@@ -202,7 +206,7 @@ viewAmount n unit =
         ]
 
 
-viewLoad : Maybe Exercise.Load -> Element a msg
+viewLoad : Maybe Data.Load -> Element a msg
 viewLoad load =
     let
         toElement n unit =
@@ -212,10 +216,10 @@ viewLoad load =
         Nothing ->
             empty
 
-        Just (Exercise.Kgs n) ->
+        Just (Data.Kgs n) ->
             toElement n "kg"
 
-        Just (Exercise.Lbs n) ->
+        Just (Data.Lbs n) ->
             toElement n "lb"
 
 
