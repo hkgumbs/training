@@ -3,7 +3,6 @@ module Dashboard.Page exposing (Model, Msg, init, update, view)
 import Bulma exposing (..)
 import Global
 import Html.Events exposing (..)
-import Http
 import Js
 import Task exposing (Task)
 
@@ -15,24 +14,9 @@ type alias Model =
 
 init : Global.Context -> Task Global.Error Model
 init context =
-    Task.andThen
-        (\_ ->
-            Task.succeed
-                { authenticated = context.auth /= Nothing
-                }
-        )
-        (Http.request
-            { method = "GET"
-            , url = context.dbapi ++ "exercises"
-            , headers = Global.authorize context
-            , body = Http.emptyBody
-            , expect = Http.expectStringResponse (always <| Ok ())
-            , timeout = Nothing
-            , withCredentials = False
-            }
-            |> Http.toTask
-            |> Task.onError (\_ -> Task.succeed ())
-        )
+    Task.succeed
+        { authenticated = context.auth /= Nothing
+        }
 
 
 type Msg

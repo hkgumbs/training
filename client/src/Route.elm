@@ -10,7 +10,7 @@ import UrlParser exposing (..)
 type Route
     = Dashboard
     | Client String
-    | TokenRedirect Global.Token
+    | TokenRedirect String
 
 
 fromLocation : Location -> Maybe Route
