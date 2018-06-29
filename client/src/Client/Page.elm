@@ -30,26 +30,17 @@ type alias Client =
 type alias Exercise =
     { name : String
     , features : List String
-    , progressions : List Progression
+    , movements : List Movement
     }
 
 
-type alias Progression =
+type alias Movement =
     { name : String
     , sets : Int
     , reps : Int
-    , load : Maybe Load
+    , load : Maybe Resources.Load
     , rest : Int
-    , progressionRate : Int
-    , minimumFms : Maybe Int
-
-    -- , option : Option
     }
-
-
-type Load
-    = Lbs Int
-    | Kgs Int
 
 
 init : Global.Context -> String -> Task Global.Error Model
@@ -77,13 +68,26 @@ getClient context =
 
 getExercises : Global.Context -> Task Global.Error (List Exercise)
 getExercises context =
-    PG.query Resources.exercise Exercise
-        |> PG.select .name
-        |> PG.includeMany .features
-            PG.noLimit
-            (PG.select .value <| PG.query Resources.exerciseFeature identity)
-        |> PG.hardcoded {- TODO -} []
-        |> PG.list PG.noLimit context.dbapi (Global.authorize context)
+    PG.readAll Resources.exercise
+        (PG.map3 Exercise
+            (PG.field .name)
+            (PG.embedAll .features Resources.exerciseFeature (PG.field .value))
+            (PG.embedAll .movements
+                Resources.movement
+                (PG.map5 Movement
+                    (PG.field .name)
+                    (PG.field .sets)
+                    (PG.field .reps)
+                    (PG.field .load)
+                    (PG.field .rest)
+                )
+            )
+        )
+        |> PG.toHttpRequest
+            { timeout = Nothing
+            , token = context.auth
+            , url = context.dbapi
+            }
         |> Http.toTask
         |> Task.mapError (Debug.log "HTTP" >> Global.httpError)
 
@@ -203,41 +207,36 @@ viewSchedule : Int -> Client -> List Exercise -> Element Tile Msg
 viewSchedule weeksToProject client exercises =
     let
         projection =
-            -- Movement.project
-            --     { exercises = exercises
-            --     , weeksToProject = weeksToProject
-            --     , daysPerWeek = List.length client.schedule
-            --     }
-            []
+            generatePlan
+                { exercises = exercises
+                , weeksToProject = weeksToProject
+                , daysPerWeek = List.length client.schedule
+                }
     in
     tile [ vertical ] <|
         List.map viewWeek projection
             ++ [ parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
 
 
-{-| viewWeek : List Movement.Movement -> Element Tile Msg
--}
-viewWeek =
-    tile [] << List.map viewMovement
+viewWeek : { week : List { workout : List Movement } } -> Element Tile Msg
+viewWeek { week } =
+    tile [] <| List.map viewWorkout week
 
 
-{-| viewMovement : Movement.Movement -> Element Tile Msg
--}
+viewWorkout : { workout : List Movement } -> Element Tile Msg
+viewWorkout { workout } =
+    parent [ notification [ color.light ] <| List.map viewMovement workout ]
+
+
+viewMovement : Movement -> Element Tile Msg
 viewMovement movement =
-    parent
-        [ notification
-            [ if movement.isProgression then
-                color.info
-              else
-                color.light
-            ]
-            [ rows
-                [ subtitle movement.name
-                , level
-                    [ [ viewAmount movement.sets "set" ]
-                    , [ viewAmount movement.reps "rep" ]
-                    , [ viewLoad movement.load ]
-                    ]
+    concat
+        [ rows
+            [ subtitle movement.name
+            , level
+                [ [ viewAmount movement.sets "set" ]
+                , [ viewAmount movement.reps "rep" ]
+                , [ viewLoad movement.load ]
                 ]
             ]
         ]
@@ -245,14 +244,10 @@ viewMovement movement =
 
 viewAmount : Int -> String -> Element a msg
 viewAmount n unit =
-    concat
-        [ bold <| toString n
-        , nbsp
-        , text <| pluralize n unit
-        ]
+    concat [ bold <| toString n, nbsp, text <| pluralize n unit ]
 
 
-viewLoad : Maybe Load -> Element a msg
+viewLoad : Maybe Resources.Load -> Element a msg
 viewLoad load =
     let
         toElement n unit =
@@ -262,10 +257,10 @@ viewLoad load =
         Nothing ->
             empty
 
-        Just (Kgs n) ->
+        Just (Resources.Kgs n) ->
             toElement n "kg"
 
-        Just (Lbs n) ->
+        Just (Resources.Lbs n) ->
             toElement n "lb"
 
 
@@ -289,3 +284,22 @@ pluralize n singular =
         singular
     else
         singular ++ "s"
+
+
+
+-- PLAN
+
+
+generatePlan :
+    { exercises : List Exercise
+    , weeksToProject : Int
+    , daysPerWeek : Int
+    }
+    -> List { week : List { workout : List Movement } }
+generatePlan { exercises, weeksToProject, daysPerWeek } =
+    List.repeat weeksToProject
+        { week =
+            List.repeat daysPerWeek
+                { workout = List.concatMap .movements exercises
+                }
+        }
