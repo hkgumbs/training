@@ -79,7 +79,9 @@ getExercises : Global.Context -> Task Global.Error (List Exercise)
 getExercises context =
     PG.query Resources.exercise Exercise
         |> PG.select .name
-        |> PG.hardcoded {- TODO -} []
+        |> PG.includeMany .features
+            PG.noLimit
+            (PG.select .value <| PG.query Resources.exerciseFeature identity)
         |> PG.hardcoded {- TODO -} []
         |> PG.list PG.noLimit context.dbapi (Global.authorize context)
         |> Http.toTask
