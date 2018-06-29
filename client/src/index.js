@@ -37,7 +37,7 @@ function development() {
     + ".eyJyb2xlIjoid2ViIn0"
     + ".OV5FRcM6dZTHQR5oF0hcbmjBZdN2j-1QD-TSQ0ErD04";
   return {
-    dbapi: 'http://localhost:3001/',
+    dbapi: 'http://localhost:3001',
     login: () => window.location = tokenRedirect,
     logout: () => window.location.reload(),
   };
@@ -55,7 +55,7 @@ function production() {
   });
 
   return {
-    dbapi: 'https://progress-api.herokuapp.com/',
+    dbapi: 'https://progress-api.herokuapp.com',
     login: () => auth.authorize(),
     logout: () => auth.logout({ clientID: clientID, returnTo: initialUri }),
   };
