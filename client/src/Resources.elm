@@ -1,6 +1,6 @@
 module Resources exposing (..)
 
-import Postgrest as PG
+import PostgRest as PG
 
 
 type Client
@@ -10,7 +10,48 @@ type Client
 client =
     PG.resource Client
         "clients"
-        { id = PG.string
-        , name = PG.string
-        , name = PG.string
+        { id = PG.string "id"
+        , name = PG.string "movements"
+        }
+
+
+type Exercise
+    = Exercise
+
+
+exercise =
+    PG.resource Exercise
+        "exercises"
+        { id = PG.string "id"
+        , name = PG.string "name"
+        , movements = PG.hasMany Movement
+        , features = PG.hasMany Feature
+        }
+
+
+type Movement
+    = Movement
+
+
+movement =
+    PG.resource Movement
+        "movements"
+        -- TODO: load
+        { id = PG.string "id"
+        , sets = PG.int "sets"
+        , reps = PG.int "reps"
+        , rest = PG.int "rest"
+        , exercise = PG.hasOne Exercise
+        }
+
+
+type Feature
+    = Feature
+
+
+feature =
+    PG.resource Feature
+        "exercise_features"
+        { id = PG.string "id"
+        , value = PG.string "value"
         }

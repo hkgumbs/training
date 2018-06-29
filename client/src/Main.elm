@@ -59,6 +59,9 @@ update msg model =
         Error Global.RequiresAuth ->
             ( model, Js.login )
 
+        Error Global.AppError ->
+            Debug.crash {- TODO -} ""
+
         Logout ->
             ( model, Js.logout )
 

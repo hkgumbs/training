@@ -6,7 +6,10 @@ import Client.Movement as Movement
 import Date
 import Global
 import Html.Events exposing (..)
+import Http
 import Json.Decode as D
+import PostgRest as PG
+import Resources
 import Task exposing (Task)
 import TestData
 
@@ -15,18 +18,21 @@ type alias Model =
     { showSidebar : Bool
     , weeksToProject : Int
     , client : Client
+    , exercises : List Data.Exercise
     }
 
 
 type alias Client =
     { name : String
-    , plan : Movement.Plan
+    , schedule : List Date.Day
     }
 
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map (Model True 6) (getClient context)
+    Task.map2 (Model True 6)
+        (getClient context)
+        (getExercises context)
 
 
 getClient : Global.Context -> Task Global.Error Client
@@ -35,11 +41,7 @@ getClient context =
         decoder =
             D.map2 Client
                 (D.field "name" D.string)
-                (D.field "plan" <|
-                    D.map2 Movement.Plan
-                        (D.field "schedule" Data.days)
-                        (D.field "exercises" <| D.list Data.exercise)
-                )
+                (D.field "schedule" Data.days)
     in
     case D.decodeString decoder TestData.client of
         Ok client ->
@@ -47,6 +49,19 @@ getClient context =
 
         Err _ ->
             Debug.crash {- TODO -} ""
+
+
+getExercises : Global.Context -> Task Global.Error (List Data.Exercise)
+getExercises context =
+    PG.query Resources.exercise Data.Exercise
+        |> PG.select .name
+        |> PG.hardcoded {- TODO -} Data.HipDominent
+        |> PG.hardcoded {- TODO -} Data.Saggital
+        |> PG.hardcoded {- TODO -} Data.Multi
+        |> PG.hardcoded {- TODO -} []
+        |> PG.list PG.noLimit context.dbapi (Global.authorize context)
+        |> Http.toTask
+        |> Task.mapError (Debug.log "HTTP" >> Global.httpError)
 
 
 type Msg
@@ -73,15 +88,15 @@ update context msg model =
 
 
 adjustSchedule : Date.Day -> Client -> Client
-adjustSchedule day ({ plan } as client) =
+adjustSchedule day client =
     let
         schedule =
-            if List.member day plan.schedule then
-                List.filter ((/=) day) client.plan.schedule
+            if List.member day client.schedule then
+                List.filter ((/=) day) client.schedule
             else
-                day :: client.plan.schedule
+                day :: client.schedule
     in
-    { client | plan = { plan | schedule = schedule } }
+    { client | schedule = schedule }
 
 
 view : Model -> Element a Msg
@@ -100,31 +115,31 @@ view model =
                 ]
             , tile [] <|
                 if model.showSidebar then
-                    [ viewSidebar model.client
-                    , viewSchedule model.weeksToProject model.client
+                    [ viewSidebar model.client model.exercises
+                    , viewSchedule model.weeksToProject model.client model.exercises
                     ]
                 else
-                    [ viewSchedule model.weeksToProject model.client
+                    [ viewSchedule model.weeksToProject model.client model.exercises
                     ]
             ]
         ]
 
 
-viewSidebar : Client -> Element Tile Msg
-viewSidebar client =
+viewSidebar : Client -> List Data.Exercise -> Element Tile Msg
+viewSidebar client exercises =
     tile [ width.is4 ]
         [ parent
             [ notification [ color.white ]
                 [ title client.name
                 , label "Schedule"
                 , field [ form.addons ]
-                    [ dayOfWeek client.plan.schedule Date.Mon
-                    , dayOfWeek client.plan.schedule Date.Tue
-                    , dayOfWeek client.plan.schedule Date.Wed
-                    , dayOfWeek client.plan.schedule Date.Thu
-                    , dayOfWeek client.plan.schedule Date.Fri
-                    , dayOfWeek client.plan.schedule Date.Sat
-                    , dayOfWeek client.plan.schedule Date.Sun
+                    [ dayOfWeek client.schedule Date.Mon
+                    , dayOfWeek client.schedule Date.Tue
+                    , dayOfWeek client.schedule Date.Wed
+                    , dayOfWeek client.schedule Date.Thu
+                    , dayOfWeek client.schedule Date.Fri
+                    , dayOfWeek client.schedule Date.Sat
+                    , dayOfWeek client.schedule Date.Sun
                     ]
                 , hr
                 , field []
@@ -133,7 +148,7 @@ viewSidebar client =
                         [ icons.left ]
                         [ icon search, textInput [ placeholder "Add an exercise..." ] ]
                     ]
-                , rows <| List.map viewExercise client.plan.exercises
+                , rows <| List.map viewExercise exercises
                 ]
             ]
         ]
@@ -164,10 +179,18 @@ dayOfWeek schedule day =
         ]
 
 
-viewSchedule : Int -> Client -> Element Tile Msg
-viewSchedule weeksToProject client =
+viewSchedule : Int -> Client -> List Data.Exercise -> Element Tile Msg
+viewSchedule weeksToProject client exercises =
+    let
+        projection =
+            Movement.project
+                { exercises = exercises
+                , weeksToProject = weeksToProject
+                , daysPerWeek = List.length client.schedule
+                }
+    in
     tile [ vertical ] <|
-        List.map viewWeek (Movement.project weeksToProject client.plan)
+        List.map viewWeek projection
             ++ [ parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
 
 

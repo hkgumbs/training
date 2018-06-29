@@ -6,6 +6,7 @@ module Global
         , authorize
         , context
         , encodeToken
+        , httpError
         , parseToken
         )
 
@@ -16,6 +17,7 @@ import Json.Encode as E
 
 type Error
     = RequiresAuth
+    | AppError
 
 
 
@@ -67,6 +69,19 @@ authorize context =
 
         Just (Token raw) ->
             [ Http.header "Authorization" <| "Bearer " ++ raw ]
+
+
+httpError : Http.Error -> Error
+httpError error =
+    case error of
+        Http.BadStatus { status } ->
+            if status.code == 403 then
+                RequiresAuth
+            else
+                AppError
+
+        _ ->
+            AppError
 
 
 

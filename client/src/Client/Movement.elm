@@ -1,13 +1,6 @@
-module Client.Movement exposing (Movement, Plan, project)
+module Client.Movement exposing (Movement, project)
 
 import Client.Data as Data
-import Date
-
-
-type alias Plan =
-    { schedule : List Date.Day
-    , exercises : List Data.Exercise
-    }
 
 
 type alias Movement =
@@ -32,10 +25,15 @@ type alias Movement =
 --  }
 
 
-project : Int -> Plan -> List (List Movement)
-project weeksToProject plan =
-    List.concatMap projectExercise plan.exercises
-        |> List.map (List.repeat (List.length plan.schedule))
+project :
+    { weeksToProject : Int
+    , daysPerWeek : Int
+    , exercises : List Data.Exercise
+    }
+    -> List (List Movement)
+project { weeksToProject, daysPerWeek, exercises } =
+    List.concatMap projectExercise exercises
+        |> List.map (List.repeat daysPerWeek)
         |> List.take weeksToProject
 
 
