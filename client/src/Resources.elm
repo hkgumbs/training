@@ -49,7 +49,7 @@ type Feature
     = Feature
 
 
-feature =
+exerciseFeature =
     PG.resource Feature
         "exercise_features"
         { id = PG.string "id"

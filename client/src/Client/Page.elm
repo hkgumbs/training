@@ -1,8 +1,7 @@
 module Client.Page exposing (Model, Msg, init, update, view)
 
 import Bulma exposing (..)
-import Client.Data as Data
-import Client.Movement as Movement
+import Client.Days as Days
 import Date
 import Global
 import Html.Events exposing (..)
@@ -18,7 +17,7 @@ type alias Model =
     { showSidebar : Bool
     , weeksToProject : Int
     , client : Client
-    , exercises : List Data.Exercise
+    , exercises : List Exercise
     }
 
 
@@ -26,6 +25,31 @@ type alias Client =
     { name : String
     , schedule : List Date.Day
     }
+
+
+type alias Exercise =
+    { name : String
+    , features : List String
+    , progressions : List Progression
+    }
+
+
+type alias Progression =
+    { name : String
+    , sets : Int
+    , reps : Int
+    , load : Maybe Load
+    , rest : Int
+    , progressionRate : Int
+    , minimumFms : Maybe Int
+
+    -- , option : Option
+    }
+
+
+type Load
+    = Lbs Int
+    | Kgs Int
 
 
 init : Global.Context -> String -> Task Global.Error Model
@@ -41,7 +65,7 @@ getClient context =
         decoder =
             D.map2 Client
                 (D.field "name" D.string)
-                (D.field "schedule" Data.days)
+                (D.field "schedule" Days.decoder)
     in
     case D.decodeString decoder TestData.client of
         Ok client ->
@@ -51,13 +75,11 @@ getClient context =
             Debug.crash {- TODO -} ""
 
 
-getExercises : Global.Context -> Task Global.Error (List Data.Exercise)
+getExercises : Global.Context -> Task Global.Error (List Exercise)
 getExercises context =
-    PG.query Resources.exercise Data.Exercise
+    PG.query Resources.exercise Exercise
         |> PG.select .name
-        |> PG.hardcoded {- TODO -} Data.HipDominent
-        |> PG.hardcoded {- TODO -} Data.Saggital
-        |> PG.hardcoded {- TODO -} Data.Multi
+        |> PG.hardcoded {- TODO -} []
         |> PG.hardcoded {- TODO -} []
         |> PG.list PG.noLimit context.dbapi (Global.authorize context)
         |> Http.toTask
@@ -125,7 +147,7 @@ view model =
         ]
 
 
-viewSidebar : Client -> List Data.Exercise -> Element Tile Msg
+viewSidebar : Client -> List Exercise -> Element Tile Msg
 viewSidebar client exercises =
     tile [ width.is4 ]
         [ parent
@@ -154,17 +176,13 @@ viewSidebar client exercises =
         ]
 
 
-viewExercise : Data.Exercise -> Element a Msg
+viewExercise : Exercise -> Element a Msg
 viewExercise exercise =
     box []
         [ levelLeftRight
             [ subtitle exercise.name ]
             [ button [ color.danger, outline ] [ icon delete ] ]
-        , tags []
-            [ tag [] <| Data.typeString exercise.type_
-            , tag [] <| Data.planeOfMotionString exercise.planeOfMotion
-            , tag [] <| Data.jointActionString exercise.jointAction
-            ]
+        , tags [] <| List.map (tag []) exercise.features
         ]
 
 
@@ -175,31 +193,34 @@ dayOfWeek schedule day =
             [ selected <| List.member day schedule
             , onClick <| SetSchedule day
             ]
-            [ text <| Data.dayString day ]
+            [ text <| Days.toString day ]
         ]
 
 
-viewSchedule : Int -> Client -> List Data.Exercise -> Element Tile Msg
+viewSchedule : Int -> Client -> List Exercise -> Element Tile Msg
 viewSchedule weeksToProject client exercises =
     let
         projection =
-            Movement.project
-                { exercises = exercises
-                , weeksToProject = weeksToProject
-                , daysPerWeek = List.length client.schedule
-                }
+            -- Movement.project
+            --     { exercises = exercises
+            --     , weeksToProject = weeksToProject
+            --     , daysPerWeek = List.length client.schedule
+            --     }
+            []
     in
     tile [ vertical ] <|
         List.map viewWeek projection
             ++ [ parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
 
 
-viewWeek : List Movement.Movement -> Element Tile Msg
+{-| viewWeek : List Movement.Movement -> Element Tile Msg
+-}
 viewWeek =
     tile [] << List.map viewMovement
 
 
-viewMovement : Movement.Movement -> Element Tile Msg
+{-| viewMovement : Movement.Movement -> Element Tile Msg
+-}
 viewMovement movement =
     parent
         [ notification
@@ -229,7 +250,7 @@ viewAmount n unit =
         ]
 
 
-viewLoad : Maybe Data.Load -> Element a msg
+viewLoad : Maybe Load -> Element a msg
 viewLoad load =
     let
         toElement n unit =
@@ -239,10 +260,10 @@ viewLoad load =
         Nothing ->
             empty
 
-        Just (Data.Kgs n) ->
+        Just (Kgs n) ->
             toElement n "kg"
 
-        Just (Data.Lbs n) ->
+        Just (Lbs n) ->
             toElement n "lb"
 
 
