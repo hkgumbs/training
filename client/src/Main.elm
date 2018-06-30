@@ -3,6 +3,7 @@ module Main exposing (..)
 import Bulma
 import Client.Page
 import Dashboard.Page
+import Exercise.Page
 import Global
 import Html
 import Js
@@ -20,8 +21,9 @@ type alias Model =
 
 type Page
     = Blank
-    | Client Client.Page.Model
     | Dashboard Dashboard.Page.Model
+    | Client Client.Page.Model
+    | Exercise Exercise.Page.Model
 
 
 init : Json.Decode.Value -> Navigation.Location -> ( Model, Cmd Msg )
@@ -48,6 +50,7 @@ type Msg
 type PageMsg
     = DashboardMsg Dashboard.Page.Msg
     | ClientMsg Client.Page.Msg
+    | ExerciseMsg Exercise.Page.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -84,6 +87,10 @@ updatePage context msg page =
             Client.Page.update context pageMsg model
                 |> mapBoth Client (Cmd.map ClientMsg)
 
+        ( ExerciseMsg pageMsg, Exercise model ) ->
+            Exercise.Page.update context pageMsg model
+                |> mapBoth Exercise (Cmd.map ExerciseMsg)
+
         _ ->
             ( page, Cmd.none )
 
@@ -104,6 +111,9 @@ goTo destination ({ context } as model) =
 
         Just (Route.Client id) ->
             ( model, Task.attempt (load Client) <| Client.Page.init context id )
+
+        Just (Route.Exercise id) ->
+            ( model, Task.attempt (load Exercise) <| Exercise.Page.init context id )
 
         Just (Route.TokenRedirect idToken) ->
             ( { model | context = { context | auth = Just idToken } }
@@ -133,6 +143,9 @@ view { page } =
 
             Client model ->
                 Bulma.toHtml ClientMsg [ Client.Page.view model ]
+
+            Exercise model ->
+                Bulma.toHtml ExerciseMsg [ Exercise.Page.view model ]
 
 
 main : Program Json.Decode.Value Model Msg

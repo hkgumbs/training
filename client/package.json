@@ -12,6 +12,7 @@
     "@fortawesome/fontawesome-free": "^5.1.0",
     "auth0-js": "^9.3.3",
     "bulma": "^0.7.1",
+    "bulma-divider": "^2.0.1",
     "create-elm-app": "^1.10.3"
   }
 }

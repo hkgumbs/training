@@ -174,7 +174,7 @@ viewSidebar client exercises =
     tile [ width.is4 ]
         [ parent
             [ notification [ color.white ]
-                [ title client.name
+                [ title [ text client.name ]
                 , label "Schedule"
                 , field [ form.addons ]
                     [ dayOfWeek client.schedule Date.Mon
@@ -202,7 +202,7 @@ viewExercise : Exercise -> Element a Msg
 viewExercise exercise =
     box []
         [ levelLeftRight
-            [ subtitle exercise.name ]
+            [ subtitle [ text exercise.name ] ]
             [ button [ color.danger, outline ] [ icon delete ] ]
         , tags [] <| List.map (tag []) exercise.features
         ]
@@ -248,7 +248,7 @@ viewMovement : Movement -> Element Tile Msg
 viewMovement movement =
     concat
         [ rows
-            [ subtitle movement.name
+            [ subtitle [ text movement.name ]
             , level
                 [ [ viewSetsReps movement.sets movement.reps ]
                 , [ viewLoad movement.load ]

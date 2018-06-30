@@ -19,6 +19,8 @@ module Bulma
         , concat
         , control
         , delete
+        , divider
+        , dividerVertical
         , empty
         , field
         , form
@@ -95,14 +97,14 @@ nested element =
 -- ELEMENTS
 
 
-title : String -> Element tag msg
-title raw =
-    Element "h1" [ Attrs.class "title" ] [ text raw ]
+title : List (Element tag msg) -> Element tag msg
+title =
+    Element "h1" [ Attrs.class "title" ]
 
 
-subtitle : String -> Element tag msg
-subtitle raw =
-    Element "h2" [ Attrs.class "subtitle has-text-weight-semibold" ] [ text raw ]
+subtitle : List (Element tag msg) -> Element tag msg
+subtitle =
+    Element "h2" [ Attrs.class "subtitle has-text-weight-semibold" ]
 
 
 box : List (Attribute msg) -> List (Element tag msg) -> Element tag msg
@@ -163,6 +165,24 @@ br =
 hr : Element tag msg
 hr =
     Element "hr" [] []
+
+
+divider : String -> Element tag msg
+divider content =
+    Element "div"
+        [ Attrs.class "is-divider"
+        , Attrs.attribute "data-content" content
+        ]
+        []
+
+
+dividerVertical : String -> Element tag msg
+dividerVertical content =
+    Element "div"
+        [ Attrs.class "is-divider-vertical"
+        , Attrs.attribute "data-content" content
+        ]
+        []
 
 
 concat : List (Element tag msg) -> Element tag msg

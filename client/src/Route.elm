@@ -10,6 +10,7 @@ import UrlParser exposing (..)
 type Route
     = Dashboard
     | Client String
+    | Exercise String
     | TokenRedirect String
 
 
@@ -27,6 +28,7 @@ route =
         [ map TokenRedirect <| custom "ID TOKEN" Global.parseToken
         , map Dashboard <| s ""
         , map Client <| s "client" </> string
+        , map Exercise <| s "exercise" </> string
         ]
 
 
@@ -48,6 +50,9 @@ hash route =
 
         Client id ->
             "#/client/" ++ id
+
+        Exercise id ->
+            "#/exercise/" ++ id
 
         TokenRedirect _ ->
             "#/"
