@@ -57,7 +57,7 @@ findToken chunk =
 
 httpError : Http.Error -> Error
 httpError error =
-    case error of
+    case Debug.log "HTTP" error of
         Http.BadStatus { status } ->
             if status.code == 403 then
                 RequiresAuth

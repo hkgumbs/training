@@ -26,8 +26,23 @@ exercise =
         Exercise
         { id = PG.string "id"
         , name = PG.string "name"
-        , movements = PG.hasMany "exercise_id" Movement
+        , progressions = PG.hasMany "exercise_id" Progression
         , features = PG.hasMany "exercise_id" Feature
+        }
+
+
+type Progression
+    = Progression
+
+
+progression =
+    PG.schema "progressions"
+        Progression
+        { id = PG.string "id"
+        , exercise = PG.hasOne "exercise_id" Exercise
+        , fromMovement = PG.hasOne "from_movement_id" Movement
+        , toMovement = PG.hasOne "to_movement_id" Movement
+        , rate = PG.int "rate"
         }
 
 
@@ -56,7 +71,6 @@ movement =
                 }
                 "load"
         , rest = PG.int "rest"
-        , exercise = PG.hasOne "exercise_id" Exercise
         }
 
 

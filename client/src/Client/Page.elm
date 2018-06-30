@@ -30,7 +30,14 @@ type alias Client =
 type alias Exercise =
     { name : String
     , features : List String
-    , movements : List Movement
+    , progressions : List Progression
+    }
+
+
+type alias Progression =
+    { rate : Int
+    , from : Movement
+    , to : Movement
     }
 
 
@@ -47,7 +54,16 @@ init : Global.Context -> String -> Task Global.Error Model
 init context id =
     Task.map2 (Model True 6)
         (getClient context)
-        (getExercises context)
+        (pg context getExercises)
+
+
+{-| TODO: move to Global
+-}
+pg : Global.Context -> PG.Request a -> Task Global.Error a
+pg { auth, dbapi } =
+    PG.toHttpRequest { timeout = Nothing, token = auth, url = dbapi }
+        >> Http.toTask
+        >> Task.mapError Global.httpError
 
 
 getClient : Global.Context -> Task Global.Error Client
@@ -66,30 +82,30 @@ getClient context =
             Debug.crash {- TODO -} ""
 
 
-getExercises : Global.Context -> Task Global.Error (List Exercise)
-getExercises context =
+getExercises : PG.Request (List Exercise)
+getExercises =
+    let
+        movement =
+            PG.map5 Movement
+                (PG.field .name)
+                (PG.field .sets)
+                (PG.field .reps)
+                (PG.field .load)
+                (PG.field .rest)
+    in
     PG.readAll Resources.exercise
         (PG.map3 Exercise
             (PG.field .name)
             (PG.embedAll .features Resources.exerciseFeature (PG.field .value))
-            (PG.embedAll .movements
-                Resources.movement
-                (PG.map5 Movement
-                    (PG.field .name)
-                    (PG.field .sets)
-                    (PG.field .reps)
-                    (PG.field .load)
-                    (PG.field .rest)
+            (PG.embedAll .progressions
+                Resources.progression
+                (PG.map3 Progression
+                    (PG.field .rate)
+                    (PG.embedOne .fromMovement Resources.movement movement)
+                    (PG.embedOne .toMovement Resources.movement movement)
                 )
             )
         )
-        |> PG.toHttpRequest
-            { timeout = Nothing
-            , token = context.auth
-            , url = context.dbapi
-            }
-        |> Http.toTask
-        |> Task.mapError (Debug.log "HTTP" >> Global.httpError)
 
 
 type Msg
@@ -234,24 +250,25 @@ viewMovement movement =
         [ rows
             [ subtitle movement.name
             , level
-                [ [ viewAmount movement.sets "set" ]
-                , [ viewAmount movement.reps "rep" ]
+                [ [ viewSetsReps movement.sets movement.reps ]
                 , [ viewLoad movement.load ]
                 ]
             ]
         ]
 
 
-viewAmount : Int -> String -> Element a msg
-viewAmount n unit =
-    concat [ bold <| toString n, nbsp, text <| pluralize n unit ]
+viewSetsReps : Int -> Int -> Element a msg
+viewSetsReps sets reps =
+    [ bold <| toString sets, text "×", bold <| toString reps ]
+        |> List.intersperse nbsp
+        |> concat
 
 
 viewLoad : Maybe Resources.Load -> Element a msg
 viewLoad load =
     let
         toElement n unit =
-            bold <| toString n ++ " " ++ pluralize n unit
+            concat [ bold <| toString n, nbsp, text <| pluralize n unit ]
     in
     case load of
         Nothing ->
@@ -300,6 +317,6 @@ generatePlan { exercises, weeksToProject, daysPerWeek } =
     List.repeat weeksToProject
         { week =
             List.repeat daysPerWeek
-                { workout = List.concatMap .movements exercises
+                { workout = []
                 }
         }
