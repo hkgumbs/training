@@ -3,6 +3,7 @@ module Exercise.Page exposing (Model, Msg, init, update, view)
 import Bulma exposing (..)
 import Global
 import Html.Attributes exposing (defaultValue, type_)
+import Html.Events exposing (..)
 import Http
 import PostgRest as PG
 import Resources
@@ -34,11 +35,10 @@ init : Global.Context -> String -> Task Global.Error Model
 init context id =
     Task.map2 Model
         (pg context <| getExercise id)
-        (Task.succeed
-            [ Level [ { name = "1/2 Foam Roller Hamstring Stretch", sets = 1, reps = 3 } ]
-            , Level [ { name = "Active Straight Leg Raise With Assist ", sets = 1, reps = 3 } ]
-            , Level [ { name = "Foam Roll Hip Hinge", sets = 1, reps = 3 }, { name = "ViPR Hip Hinge", sets = 1, reps = 3 } ]
-            ]
+        (Task.succeed [ newLevel ]
+         -- , Level [ { name = "1/2 Foam Roller Hamstring Stretch", sets = 1, reps = 3 } ]
+         -- , Level [ { name = "Active Straight Leg Raise With Assist ", sets = 1, reps = 3 } ]
+         -- , Level [ { name = "Foam Roll Hip Hinge", sets = 1, reps = 3 }, { name = "ViPR Hip Hinge", sets = 1, reps = 3 } ]
         )
 
 
@@ -63,6 +63,7 @@ getExercise id =
 
 type Msg
     = NoOp
+    | AddLevel
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -70,6 +71,14 @@ update context msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
+
+        AddLevel ->
+            ( { model | levels = model.levels ++ [ newLevel ] }, Cmd.none )
+
+
+newLevel : Level
+newLevel =
+    Level [ { name = "Jumping jacks", reps = 15, sets = 1 } ]
 
 
 view : Model -> Element a Msg
@@ -85,9 +94,16 @@ view model =
             , tile [] [ parent [ button [ color.primary ] [ bold "Save" ] ] ]
             ]
         , column [] <|
-            List.intersperse
-                (divider <| "in 2 weeks")
-                (List.map viewLevel model.levels)
+            [ concat <|
+                List.intersperse
+                    (divider "in 2 weeks")
+                    (List.map viewLevel model.levels)
+            , hr
+            , level
+                [ [ button [ outline, color.primary, onClick AddLevel ] [ icon plus ]
+                  ]
+                ]
+            ]
         ]
 
 

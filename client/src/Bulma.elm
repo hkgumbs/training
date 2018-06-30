@@ -36,6 +36,7 @@ module Bulma
         , outline
         , parent
         , placeholder
+        , plus
         , rows
         , search
         , selected
@@ -373,6 +374,11 @@ delete =
 search : Icon
 search =
     Icon "search"
+
+
+plus : Icon
+plus =
+    Icon "plus-circle"
 
 
 
