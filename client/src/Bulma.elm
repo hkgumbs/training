@@ -113,9 +113,9 @@ box attrs =
     Element "div" (Attrs.class "box" :: attrs)
 
 
-level : List (List (Element tag msg)) -> Element tag msg
-level =
-    Element "div" [ Attrs.class "level" ]
+level : List (Attribute msg) -> List (List (Element tag msg)) -> Element tag msg
+level attrs =
+    Element "div" (Attrs.class "level" :: attrs)
         << List.map (Element "div" [ Attrs.class "level-item" ])
 
 

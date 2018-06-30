@@ -249,7 +249,7 @@ viewMovement movement =
     concat
         [ rows
             [ subtitle [ text movement.name ]
-            , level
+            , level []
                 [ [ viewSetsReps movement.sets movement.reps ]
                 , [ viewLoad movement.load ]
                 ]

@@ -13,6 +13,7 @@ import Task exposing (Task)
 type alias Model =
     { exercise : Exercise
     , levels : List Level
+    , draggingMovement : Maybe ( Int, Movement )
     }
 
 
@@ -20,26 +21,28 @@ type alias Exercise =
     { name : String }
 
 
-type Level
-    = Level (List Movement)
+type alias Level =
+    { movements : List Movement }
 
 
 type alias Movement =
     { name : String
     , sets : Int
     , reps : Int
+    , load : String
     }
 
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map2 Model
+    Task.map3 Model
         (pg context <| getExercise id)
         (Task.succeed [ newLevel ]
          -- , Level [ { name = "1/2 Foam Roller Hamstring Stretch", sets = 1, reps = 3 } ]
          -- , Level [ { name = "Active Straight Leg Raise With Assist ", sets = 1, reps = 3 } ]
          -- , Level [ { name = "Foam Roll Hip Hinge", sets = 1, reps = 3 }, { name = "ViPR Hip Hinge", sets = 1, reps = 3 } ]
         )
+        (Task.succeed Nothing)
 
 
 {-| TODO: move to Global
@@ -64,6 +67,8 @@ getExercise id =
 type Msg
     = NoOp
     | AddLevel
+    | StartDrag Int Movement
+    | EndDrag Int
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -75,10 +80,47 @@ update context msg model =
         AddLevel ->
             ( { model | levels = model.levels ++ [ newLevel ] }, Cmd.none )
 
+        StartDrag index movement ->
+            ( { model | draggingMovement = Just ( index, movement ) }, Cmd.none )
+
+        EndDrag index ->
+            ( { model
+                | draggingMovement = Nothing
+                , levels = moveMovement index model.draggingMovement model.levels
+              }
+            , Cmd.none
+            )
+
 
 newLevel : Level
 newLevel =
-    Level [ { name = "Jumping jacks", reps = 15, sets = 1 } ]
+    Level [ { name = "Jumping jacks", reps = 15, sets = 1, load = "" } ]
+
+
+moveMovement : Int -> Maybe ( Int, Movement ) -> List Level -> List Level
+moveMovement newIndex dragging levels =
+    case dragging of
+        Nothing ->
+            levels
+
+        Just ( oldIndex, movement ) ->
+            let
+                _ =
+                    Debug.log "stuff" ( oldIndex, newIndex )
+            in
+            if oldIndex /= newIndex then
+                levels
+            else
+                List.indexedMap
+                    (\index level ->
+                        if index == oldIndex then
+                            Level <| List.filter ((==) movement) level.movements
+                        else if index == newIndex then
+                            Level <| movement :: level.movements
+                        else
+                            level
+                    )
+                    levels
 
 
 view : Model -> Element a Msg
@@ -97,9 +139,9 @@ view model =
             [ concat <|
                 List.intersperse
                     (divider "in 2 weeks")
-                    (List.map viewLevel model.levels)
+                    (List.indexedMap viewLevel model.levels)
             , hr
-            , level
+            , level []
                 [ [ button [ outline, color.primary, onClick AddLevel ] [ icon plus ]
                   ]
                 ]
@@ -107,22 +149,25 @@ view model =
         ]
 
 
-viewLevel : Level -> Element a Msg
-viewLevel level =
-    case level of
-        Level movements ->
-            Bulma.level <|
-                List.intersperse [ dividerVertical "or" ] <|
-                    List.map (\m -> [ viewMovement m ]) movements
+viewLevel : Int -> Level -> Element a Msg
+viewLevel index { movements } =
+    Bulma.level [ onMouseUp <| EndDrag index ] <|
+        List.intersperse [ dividerVertical "or" ] <|
+            List.map (viewMovement index) movements
 
 
-viewMovement : Movement -> Element a Msg
-viewMovement movement =
-    box []
-        [ rows
+viewMovement : Int -> Movement -> List (Element a Msg)
+viewMovement index movement =
+    [ box []
+        [ button
+            [ color.primary
+            , onMouseDown <| StartDrag index movement
+            ]
+            [ text "DRAG" ]
+        , rows
             [ textInput [ defaultValue movement.name ]
             , hr
-            , level
+            , level []
                 [ [ field []
                         [ label "Sets"
                         , textInput
@@ -139,6 +184,12 @@ viewMovement movement =
                             ]
                         ]
                   ]
+                , [ field []
+                        [ label "Load"
+                        , textInput [ defaultValue movement.load ]
+                        ]
+                  ]
                 ]
             ]
         ]
+    ]
