@@ -1,10 +1,11 @@
 module Dashboard.Page exposing (Model, Msg, init, update, view)
 
-import Bulma exposing (..)
 import Global
+import Html exposing (..)
 import Html.Events exposing (..)
 import Js
 import Task exposing (Task)
+import Ui exposing (..)
 
 
 type alias Model =
@@ -38,9 +39,9 @@ update context msg model =
             ( model, Js.logout )
 
 
-view : Model -> Element a Msg
+view : Model -> Element Msg
 view model =
     if model.authenticated then
-        button [ onClick Logout ] [ text "LOG OUT" ]
+        html button [ onClick Logout ] [ Ui.text "LOG OUT" ]
     else
-        button [ onClick Login ] [ text "LOG IN" ]
+        html button [ onClick Login ] [ Ui.text "LOG IN" ]

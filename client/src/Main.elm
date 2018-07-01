@@ -1,6 +1,5 @@
 module Main exposing (..)
 
-import Bulma
 import Client.Page
 import Dashboard.Page
 import Exercise.Page
@@ -11,6 +10,7 @@ import Json.Decode
 import Navigation
 import Route
 import Task
+import Ui
 
 
 type alias Model =
@@ -139,13 +139,13 @@ view { page } =
                 Html.text ""
 
             Dashboard model ->
-                Bulma.toHtml DashboardMsg [ Dashboard.Page.view model ]
+                Ui.toHtml DashboardMsg [ Dashboard.Page.view model ]
 
             Client model ->
-                Bulma.toHtml ClientMsg [ Client.Page.view model ]
+                Ui.toHtml ClientMsg [ Client.Page.view model ]
 
             Exercise model ->
-                Bulma.toHtml ExerciseMsg [ Exercise.Page.view model ]
+                Ui.toHtml ExerciseMsg [ Exercise.Page.view model ]
 
 
 main : Program Json.Decode.Value Model Msg

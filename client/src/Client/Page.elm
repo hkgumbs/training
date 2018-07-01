@@ -1,9 +1,10 @@
 module Client.Page exposing (Model, Msg, init, update, view)
 
-import Bulma exposing (..)
 import Client.Days as Days
 import Date
 import Global
+import Html exposing (..)
+import Html.Attributes exposing (placeholder)
 import Html.Events exposing (..)
 import Http
 import Json.Decode as D
@@ -11,6 +12,7 @@ import PostgRest as PG
 import Resources
 import Task exposing (Task)
 import TestData
+import Ui exposing (..)
 
 
 type alias Model =
@@ -143,21 +145,33 @@ adjustSchedule day client =
     { client | schedule = schedule }
 
 
-view : Model -> Element a Msg
+view : Model -> Element Msg
 view model =
-    ancestor
-        [ tile [ vertical ]
-            [ parent
-                [ levelLeftRight
-                    [ button [ onClick ToggleSidebar ]
-                        [ toggle model.showSidebar
-                            [ icon arrowLeft, icon user ]
-                            [ icon user, icon arrowRight ]
+    html div
+        [ bulma.tile, is.ancestor ]
+        [ html div
+            [ bulma.tile, is.vertical ]
+            [ html div
+                [ bulma.tile, is.parent ]
+                [ html div
+                    [ bulma.level, bulma.tile, is.child ]
+                    [ html div
+                        [ bulma.levelLeft ]
+                        [ html button
+                            [ bulma.button, onClick ToggleSidebar ]
+                            [ if model.showSidebar then
+                                html (node "x")
+                                    []
+                                    [{- TODO: icon arrowLeft, icon user -}]
+                              else
+                                html (node "y")
+                                    []
+                                    [{- TODO: icon user, icon arrowRight -}]
+                            ]
                         ]
                     ]
-                    []
                 ]
-            , tile [] <|
+            , html div [ bulma.tile ] <|
                 if model.showSidebar then
                     [ viewSidebar model.client model.exercises
                     , viewSchedule model.weeksToProject model.client model.exercises
@@ -169,14 +183,18 @@ view model =
         ]
 
 
-viewSidebar : Client -> List Exercise -> Element Tile Msg
+viewSidebar : Client -> List Exercise -> Element Msg
 viewSidebar client exercises =
-    tile [ width.is4 ]
-        [ parent
-            [ notification [ color.white ]
-                [ title [ text client.name ]
-                , label "Schedule"
-                , field [ form.addons ]
+    html div
+        [ bulma.tile, is.four ]
+        [ html div
+            [ is.parent ]
+            [ html div
+                [ bulma.notification, is.white ]
+                [ html h1 [ bulma.label ] [ Ui.text client.name ]
+                , html label [ bulma.label ] [ Ui.text "Schedule" ]
+                , html div
+                    [ bulma.field, has.addons ]
                     [ dayOfWeek client.schedule Date.Mon
                     , dayOfWeek client.schedule Date.Tue
                     , dayOfWeek client.schedule Date.Wed
@@ -185,41 +203,67 @@ viewSidebar client exercises =
                     , dayOfWeek client.schedule Date.Sat
                     , dayOfWeek client.schedule Date.Sun
                     ]
-                , hr
-                , field []
-                    [ label "Excercises"
-                    , control
-                        [ icons.left ]
-                        [ icon search, textInput [ placeholder "Add an exercise..." ] ]
+                , html hr [] []
+                , html div
+                    [ bulma.field ]
+                    [ html label [ bulma.label ] [ Ui.text "Exercises" ]
+                    , html div
+                        [ bulma.control, has.iconsLeft ]
+                        [ {- TODO: icon search -}
+                          html input
+                            [ bulma.input, placeholder "Add an exercise..." ]
+                            []
+                        ]
                     ]
-                , rows <| List.map viewExercise exercises
+                , html div
+                    [ bulma.columns ]
+                    [ html div [ bulma.column ] <| List.map viewExercise exercises ]
                 ]
             ]
         ]
 
 
-viewExercise : Exercise -> Element a Msg
+viewExercise : Exercise -> Element Msg
 viewExercise exercise =
-    box []
-        [ levelLeftRight
-            [ subtitle [ text exercise.name ] ]
-            [ button [ color.danger, outline ] [ icon delete ] ]
-        , tags [] <| List.map (tag []) exercise.features
-        ]
-
-
-dayOfWeek : List Date.Day -> Date.Day -> Element a Msg
-dayOfWeek schedule day =
-    control []
-        [ button
-            [ selected <| List.member day schedule
-            , onClick <| SetSchedule day
+    html div
+        [ bulma.box ]
+        [ html div
+            [ bulma.level ]
+            [ html div
+                [ bulma.levelLeft ]
+                [ html h2
+                    [ bulma.subtitle ]
+                    [ Ui.text exercise.name ]
+                ]
+            , html div
+                [ bulma.levelRight ]
+                [ html button
+                    [ bulma.button
+                    , is.danger
+                    , is.outlined
+                    ]
+                    [{- TODO: icon delete -}]
+                ]
             ]
-            [ text <| Days.toString day ]
+        , html div [ bulma.tags ] <|
+            List.map
+                (\name -> html div [ bulma.tag ] [ Ui.text name ])
+                exercise.features
         ]
 
 
-viewSchedule : Int -> Client -> List Exercise -> Element Tile Msg
+dayOfWeek : List Date.Day -> Date.Day -> Element Msg
+dayOfWeek schedule day =
+    html div
+        [ bulma.control ]
+        [ html button
+            -- TODO: is.selected <| List.member day schedule
+            [ bulma.button, onClick <| SetSchedule day ]
+            [ Ui.text <| Days.toString day ]
+        ]
+
+
+viewSchedule : Int -> Client -> List Exercise -> Element Msg
 viewSchedule weeksToProject client exercises =
     let
         projection =
@@ -229,46 +273,69 @@ viewSchedule weeksToProject client exercises =
                 , daysPerWeek = List.length client.schedule
                 }
     in
-    tile [ vertical ] <|
+    html div [ bulma.tile, is.vertical ] <|
         List.map viewWeek projection
-            ++ [ parent [ button [ onClick LoadMore ] [ text "Load more" ] ] ]
+            ++ [ html div
+                    [ bulma.tile, is.parent ]
+                    [ html button
+                        [ bulma.button, bulma.tile, is.child, onClick LoadMore ]
+                        [ Ui.text "Load more" ]
+                    ]
+               ]
 
 
-viewWeek : { week : List { workout : List Movement } } -> Element Tile Msg
+viewWeek : { week : List { workout : List Movement } } -> Element Msg
 viewWeek { week } =
-    tile [] <| List.map viewWorkout week
+    html div [ bulma.tile ] <| List.map viewWorkout week
 
 
-viewWorkout : { workout : List Movement } -> Element Tile Msg
+viewWorkout : { workout : List Movement } -> Element Msg
 viewWorkout { workout } =
-    parent [ notification [ color.light ] <| List.map viewMovement workout ]
+    html div
+        [ bulma.tile, is.parent ]
+        [ html div [ bulma.notification, bulma.tile, is.child, is.light ] <|
+            List.map viewMovement workout
+        ]
 
 
-viewMovement : Movement -> Element Tile Msg
+viewMovement : Movement -> Element Msg
 viewMovement movement =
-    concat
-        [ rows
-            [ subtitle [ text movement.name ]
-            , level []
-                [ [ viewSetsReps movement.sets movement.reps ]
-                , [ viewLoad movement.load ]
+    Ui.embed
+        [ html div
+            [ bulma.columns ]
+            [ html div
+                [ bulma.column ]
+                [ html h2 [ bulma.subtitle ] [ Ui.text movement.name ]
+                , html div
+                    [ bulma.level ]
+                    [ html div [ bulma.levelItem ] [ viewSetsReps movement.sets movement.reps ]
+                    , html div [ bulma.levelItem ] [ viewLoad movement.load ]
+                    ]
                 ]
             ]
         ]
 
 
-viewSetsReps : Int -> Int -> Element a msg
+viewSetsReps : Int -> Int -> Element msg
 viewSetsReps sets reps =
-    [ bold <| toString sets, text "×", bold <| toString reps ]
-        |> List.intersperse nbsp
-        |> concat
+    Ui.embed
+        [ html span [ has.textWeightBold ] [ Ui.text <| toString sets ]
+        , nbsp
+        , Ui.text "×"
+        , nbsp
+        , html span [ has.textWeightBold ] [ Ui.text <| toString reps ]
+        ]
 
 
-viewLoad : Maybe Resources.Load -> Element a msg
+viewLoad : Maybe Resources.Load -> Element msg
 viewLoad load =
     let
         toElement n unit =
-            concat [ bold <| toString n, nbsp, text <| pluralize n unit ]
+            Ui.embed
+                [ html span [ has.textWeightBold ] [ Ui.text <| toString n ]
+                , nbsp
+                , Ui.text <| pluralize n unit
+                ]
     in
     case load of
         Nothing ->

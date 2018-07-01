@@ -1,5 +1,4 @@
 import 'bulma/css/bulma.css';
-import 'bulma-divider/dist/css/bulma-divider.min.css';
 import '@fortawesome/fontawesome-free/js/all.js';
 import auth0 from 'auth0-js';
 import { Main } from './Main.elm';
