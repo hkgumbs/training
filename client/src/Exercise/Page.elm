@@ -2,7 +2,7 @@ module Exercise.Page exposing (Model, Msg, init, update, view)
 
 import Global
 import Html exposing (..)
-import Html.Attributes exposing (defaultValue, type_)
+import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import PostgRest as PG
@@ -30,7 +30,7 @@ type alias Movement =
     { name : String
     , sets : Int
     , reps : Int
-    , load : String
+    , notes : String
     }
 
 
@@ -38,10 +38,22 @@ init : Global.Context -> String -> Task Global.Error Model
 init context id =
     Task.map3 Model
         (pg context <| getExercise id)
-        (Task.succeed [ newLayer ]
-         -- , Layer [ { name = "1/2 Foam Roller Hamstring Stretch", sets = 1, reps = 3 } ]
-         -- , Layer [ { name = "Active Straight Leg Raise With Assist ", sets = 1, reps = 3 } ]
-         -- , Layer [ { name = "Foam Roll Hip Hinge", sets = 1, reps = 3 }, { name = "ViPR Hip Hinge", sets = 1, reps = 3 } ]
+        (Task.succeed
+            [ Layer
+                [ { name = "1/2 Foam Roller Hamstring Stretch", sets = 1, reps = 3, notes = "" }
+                ]
+            , Layer
+                [ { name = "Active Straight Leg Raise With Assist "
+                  , sets = 1
+                  , reps = 3
+                  , notes = ""
+                  }
+                ]
+            , Layer
+                [ { name = "Foam Roll Hip Hinge", sets = 1, reps = 3, notes = "" }
+                , { name = "ViPR Hip Hinge", sets = 1, reps = 3, notes = "" }
+                ]
+            ]
         )
         (Task.succeed Nothing)
 
@@ -95,7 +107,7 @@ update context msg model =
 
 newLayer : Layer
 newLayer =
-    Layer [ { name = "Jumping jacks", reps = 15, sets = 1, load = "" } ]
+    Layer [ { name = "Jumping jacks", reps = 15, sets = 1, notes = "" } ]
 
 
 moveMovement : Int -> Maybe ( Int, Movement ) -> List Layer -> List Layer
@@ -122,98 +134,140 @@ moveMovement newIndex dragging levels =
 
 view : Model -> Element Msg
 view model =
-    html span [] [ Ui.text "__EXERCISE__" ]
+    html div
+        [ bulma.columns ]
+        [ html div
+            [ bulma.column ]
+            [ Ui.embed <|
+                List.intersperse viewInterval
+                    (List.indexedMap viewLayer model.levels)
+            , html hr [] []
+            , html div
+                [ bulma.level ]
+                [ html div
+                    [ bulma.levelItem ]
+                    [ html button
+                        [ bulma.button
+                        , is.outlined
+                        , is.primary
+                        , onClick AddLevel
+                        ]
+                        [ icon "plus" []
+                        , html span [] [ Ui.text "Add another step" ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
 
 
+viewInterval =
+    html div
+        [ bulma.notification, has.backgroundLight ]
+        [ html div
+            [ bulma.level ]
+            [ html div [ bulma.levelItem ] <|
+                List.intersperse nbsp <|
+                    [ Ui.text "progress in"
+                    , numberInput "2" {- TODO -} 2
+                    , Ui.text "weeks"
+                    ]
+            ]
+        ]
 
---     rows
---         [ concat <|
---             List.intersperse
---                 (notification
---                     [ background.light ]
---                     [ level []
---                         [ levelItem [] <|
---                             List.intersperse nbsp <|
---                                 [ text "progress in"
---                                 , numberInput "2" {- TODO -} 2
---                                 , text "weeks"
---                                 ]
---                         ]
---                     ]
---                 )
---                 (List.indexedMap viewLayer model.levels)
---         , hr
---         , level []
---             [ levelItem []
---                 [ button
---                     [ outline, color.primary, onClick AddLevel ]
---                     [ icon plus ]
---                 ]
---             ]
---         ]
---
---
--- viewLayer : Int -> Layer -> Element Msg
--- viewLayer index { movements } =
---     level [ onMouseUp <| EndDrag index ] <|
---         List.intersperse (levelItem [] [ button [ static ] [ text "or" ] ]) <|
---             List.map (viewMovement index) movements
---
---
--- viewMovement : Int -> Movement -> Element Msg
--- viewMovement index movement =
---     levelItem []
---         [ box []
---             [ rows
---                 [ level []
---                     [ levelLeft []
---                         [ field []
---                             [ textInput
---                                 [ input.medium
---                                 , defaultValue movement.name
---                                 ]
---                             ]
---                         ]
---                     , levelRight []
---                         [ button
---                             [ color.white
---                             , textColor.grey
---                             , cursorGrab
---                             , onMouseDown <| StartDrag index movement
---                             ]
---                             [ icon handle ]
---                         ]
---                     ]
---                 , hr
---                 , level []
---                     [ levelItem [] [ numberInput "sets" movement.sets ]
---                     , levelItem [] [ nbsp, text "×", nbsp ]
---                     , levelItem [] [ numberInput "reps" movement.reps ]
---                     ]
---                 , field []
---                     [ textarea
---                         [ Html.Attributes.rows 2
---                         , placeholder "30 kgs, sitting down, other notes..."
---                         ]
---                     ]
---                 ]
---             ]
---         ]
---
---
--- numberInput : String -> Int -> Element msg
--- numberInput name n =
---     field []
---         [ textInput
---             [ type_ "number"
---             , placeholder name
---             ]
---         ]
---
---
--- cursorGrab : Attribute msg
--- cursorGrab =
---     Html.Attributes.style
---         [ ( "cursor", "grab" )
---         , ( "cursor", "-webkit-grab" )
---         ]
+
+viewLayer : Int -> Layer -> Element Msg
+viewLayer index { movements } =
+    html div [ bulma.level, onMouseUp <| EndDrag index ] <|
+        List.intersperse
+            (html div
+                [ bulma.levelItem ]
+                [ html button [ bulma.button, is.static ] [ Ui.text "OR" ] ]
+            )
+        <|
+            List.map (viewMovement index) movements
+
+
+viewMovement : Int -> Movement -> Element Msg
+viewMovement index movement =
+    html div
+        [ bulma.levelItem ]
+        [ html div
+            [ bulma.box ]
+            [ html div
+                [ bulma.columns ]
+                [ html
+                    div
+                    [ bulma.column ]
+                    [ html div
+                        [ bulma.level ]
+                        [ html div
+                            [ bulma.levelLeft ]
+                            [ html div
+                                [ bulma.field ]
+                                [ html input
+                                    [ bulma.input
+                                    , is.medium
+                                    , defaultValue movement.name
+                                    ]
+                                    []
+                                ]
+                            ]
+                        , html div
+                            [ bulma.levelRight ]
+                            [ html button
+                                [ bulma.button
+                                , is.white
+                                , has.textGrey
+                                , cursorGrab
+                                , onMouseDown <| StartDrag index movement
+                                ]
+                                [ icon "grip-horizontal" [] ]
+                            ]
+                        ]
+                    , html label
+                        [ bulma.checkbox ]
+                        [ html input [ type_ "checkbox" ] []
+                        , Ui.text " movement prep"
+                        ]
+                    , html hr [] []
+                    , html div
+                        [ bulma.level ]
+                        [ html div [ bulma.levelItem ] [ numberInput "sets" movement.sets ]
+                        , html div [ bulma.levelItem ] [ nbsp, Ui.text "×", nbsp ]
+                        , html div [ bulma.levelItem ] [ numberInput "reps" movement.reps ]
+                        ]
+                    , html div
+                        [ bulma.field ]
+                        [ html textarea
+                            [ bulma.textarea
+                            , placeholder "30 kgs, sitting down, other notes..."
+                            , Html.Attributes.rows 2
+                            ]
+                            []
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+
+numberInput : String -> Int -> Element msg
+numberInput name n =
+    html div
+        [ bulma.field ]
+        [ html input
+            [ bulma.input
+            , type_ "number"
+            , placeholder name
+            ]
+            []
+        ]
+
+
+cursorGrab : Attribute msg
+cursorGrab =
+    Html.Attributes.style
+        [ ( "cursor", "grab" )
+        , ( "cursor", "-webkit-grab" )
+        ]

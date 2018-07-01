@@ -1,4 +1,17 @@
-module Ui exposing (Element, bulma, embed, empty, has, html, is, nbsp, text, toHtml)
+module Ui
+    exposing
+        ( Element
+        , bulma
+        , embed
+        , empty
+        , has
+        , html
+        , icon
+        , is
+        , nbsp
+        , text
+        , toHtml
+        )
 
 import Char
 import Html exposing (Attribute, Html)
@@ -213,6 +226,7 @@ bulma :
     , label : Attribute msg
     , control : Attribute msg
     , input : Attribute msg
+    , checkbox : Attribute msg
     , textarea : Attribute msg
     , button : Attribute msg
     , columns : Attribute msg
@@ -236,6 +250,7 @@ bulma =
     , label = class "label"
     , control = class "control"
     , input = class "input"
+    , checkbox = class "checkbox"
     , textarea = class "textarea"
     , button = class "button"
     , columns = class "columns"
