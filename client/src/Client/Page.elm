@@ -53,7 +53,8 @@ type alias Movement =
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map2 (Model 6)
+    Task.map3 Model
+        getWeeksToProject
         (getClient context)
         (pg context getExercises)
 
@@ -65,6 +66,11 @@ pg { auth, dbapi } =
     PG.toHttpRequest { timeout = Nothing, token = auth, url = dbapi }
         >> Http.toTask
         >> Task.mapError Global.httpError
+
+
+getWeeksToProject : Task x Int
+getWeeksToProject =
+    Task.succeed 6
 
 
 getClient : Global.Context -> Task Global.Error Client
@@ -111,33 +117,35 @@ getExercises =
 
 type Msg
     = NoOp
-    | SetSchedule Date.Day
+    | AddToSchedule Date.Day
+    | RemoveFromSchedule Date.Day
     | LoadMore
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
-update context msg model =
+update context msg ({ client } as model) =
     case msg of
         NoOp ->
-            ( model, Cmd.none )
+            pure model
 
-        SetSchedule day ->
-            ( { model | client = adjustSchedule day model.client }, Cmd.none )
+        AddToSchedule day ->
+            pure { model | client = { client | schedule = day :: client.schedule } }
+
+        RemoveFromSchedule day ->
+            pure { model | client = { client | schedule = remove day client.schedule } }
 
         LoadMore ->
-            ( { model | weeksToProject = 6 + model.weeksToProject }, Cmd.none )
+            pure { model | weeksToProject = 6 + model.weeksToProject }
 
 
-adjustSchedule : Date.Day -> Client -> Client
-adjustSchedule day client =
-    let
-        schedule =
-            if List.member day client.schedule then
-                List.filter ((/=) day) client.schedule
-            else
-                day :: client.schedule
-    in
-    { client | schedule = schedule }
+pure : Model -> ( Model, Cmd Msg )
+pure model =
+    ( model, Cmd.none )
+
+
+remove : a -> List a -> List a
+remove a =
+    List.filter ((/=) a)
 
 
 view : Model -> Element Msg
@@ -166,13 +174,13 @@ viewSidebar client exercises =
                 , html label [ bulma.label ] [ string "Schedule" ]
                 , html div
                     [ bulma.field, has.addons ]
-                    [ dayOfWeek client.schedule Date.Mon
-                    , dayOfWeek client.schedule Date.Tue
-                    , dayOfWeek client.schedule Date.Wed
-                    , dayOfWeek client.schedule Date.Thu
-                    , dayOfWeek client.schedule Date.Fri
-                    , dayOfWeek client.schedule Date.Sat
-                    , dayOfWeek client.schedule Date.Sun
+                    [ viewDay client.schedule Date.Mon
+                    , viewDay client.schedule Date.Tue
+                    , viewDay client.schedule Date.Wed
+                    , viewDay client.schedule Date.Thu
+                    , viewDay client.schedule Date.Fri
+                    , viewDay client.schedule Date.Sat
+                    , viewDay client.schedule Date.Sun
                     ]
                 , html hr [] []
                 , html div
@@ -220,14 +228,12 @@ viewExercise exercise =
         ]
 
 
-dayOfWeek : List Date.Day -> Date.Day -> Element Msg
-dayOfWeek schedule day =
+viewDay : List Date.Day -> Date.Day -> Element Msg
+viewDay schedule day =
     html div
         [ bulma.control ]
         [ html button
-            (scheduleAttrs schedule day
-                ++ [ bulma.button, onClick <| SetSchedule day ]
-            )
+            (bulma.button :: scheduleAttrs schedule day)
             [ string <| Days.toString day ]
         ]
 
@@ -320,12 +326,12 @@ viewLoad load =
             toElement n "lb"
 
 
-scheduleAttrs : List Date.Day -> Date.Day -> List (Attribute msg)
+scheduleAttrs : List Date.Day -> Date.Day -> List (Attribute Msg)
 scheduleAttrs schedule day =
     if List.member day schedule then
-        [ is.selected, is.info ]
+        [ is.selected, is.info, onClick <| RemoveFromSchedule day ]
     else
-        []
+        [ onClick <| AddToSchedule day ]
 
 
 onInt : (Int -> msg) -> Attribute msg
