@@ -2,14 +2,14 @@ module Ui
     exposing
         ( Element
         , bulma
-        , embed
+        , concat
         , empty
         , has
         , html
         , icon
         , is
         , nbsp
-        , text
+        , string
         , toHtml
         )
 
@@ -22,7 +22,7 @@ import Html.Attributes exposing (class)
 -}
 type Element msg
     = Text String
-    | Embed (List (Element msg))
+    | Concat (List (Element msg))
     | El (List (Attribute msg) -> List (Html msg) -> Html msg) (List (Attribute msg)) (List (Element msg))
 
 
@@ -41,7 +41,7 @@ topLevel element =
 nested : Element msg -> List (Html msg)
 nested element =
     case element of
-        Embed children ->
+        Concat children ->
             List.concatMap nested children
 
         Text raw ->
@@ -57,7 +57,7 @@ nested element =
 
 empty : Element msg
 empty =
-    Embed []
+    Concat []
 
 
 nbsp : Element msg
@@ -65,8 +65,8 @@ nbsp =
     Text <| String.fromChar <| Char.fromCode 0xA0
 
 
-text : String -> Element msg
-text =
+string : String -> Element msg
+string =
     Text
 
 
@@ -79,13 +79,13 @@ html =
     El
 
 
-embed : List (Element msg) -> Element msg
-embed =
-    Embed
+concat : List (Element msg) -> Element msg
+concat =
+    Concat
 
 
-icon : String -> List (Attribute msg) -> Element msg
-icon name attributes =
+icon : String -> Element msg
+icon name =
     El Html.span [ bulma.icon ] [ El Html.i [ class <| "fas fa-" ++ name ] [] ]
 
 
@@ -226,9 +226,11 @@ bulma :
     , label : Attribute msg
     , control : Attribute msg
     , input : Attribute msg
+    , select : Attribute msg
     , checkbox : Attribute msg
     , textarea : Attribute msg
     , button : Attribute msg
+    , buttons : Attribute msg
     , columns : Attribute msg
     , column : Attribute msg
     , multiline : Attribute msg
@@ -250,9 +252,11 @@ bulma =
     , label = class "label"
     , control = class "control"
     , input = class "input"
+    , select = class "select"
     , checkbox = class "checkbox"
     , textarea = class "textarea"
     , button = class "button"
+    , buttons = class "buttons"
     , columns = class "columns"
     , column = class "column"
     , multiline = class "multiline"

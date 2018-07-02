@@ -42,6 +42,6 @@ update context msg model =
 view : Model -> Element Msg
 view model =
     if model.authenticated then
-        html button [ onClick Logout ] [ Ui.text "LOG OUT" ]
+        html button [ onClick Logout ] [ string "LOG OUT" ]
     else
-        html button [ onClick Login ] [ Ui.text "LOG IN" ]
+        html button [ onClick Login ] [ string "LOG IN" ]

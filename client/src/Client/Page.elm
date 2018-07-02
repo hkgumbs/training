@@ -16,8 +16,7 @@ import Ui exposing (..)
 
 
 type alias Model =
-    { showSidebar : Bool
-    , weeksToProject : Int
+    { weeksToProject : Int
     , client : Client
     , exercises : List Exercise
     }
@@ -54,7 +53,7 @@ type alias Movement =
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map2 (Model True 6)
+    Task.map2 (Model 6)
         (getClient context)
         (pg context getExercises)
 
@@ -112,7 +111,6 @@ getExercises =
 
 type Msg
     = NoOp
-    | ToggleSidebar
     | SetSchedule Date.Day
     | LoadMore
 
@@ -122,9 +120,6 @@ update context msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
-
-        ToggleSidebar ->
-            ( { model | showSidebar = not model.showSidebar }, Cmd.none )
 
         SetSchedule day ->
             ( { model | client = adjustSchedule day model.client }, Cmd.none )
@@ -151,34 +146,10 @@ view model =
         [ bulma.tile, is.ancestor ]
         [ html div
             [ bulma.tile, is.vertical ]
-            [ html div
-                [ bulma.tile, is.parent ]
-                [ html div
-                    [ bulma.level, bulma.tile, is.child ]
-                    [ html div
-                        [ bulma.levelLeft ]
-                        [ html button
-                            [ bulma.button, onClick ToggleSidebar ]
-                            [ if model.showSidebar then
-                                html (node "x")
-                                    []
-                                    [{- TODO: icon arrowLeft, icon user -}]
-                              else
-                                html (node "y")
-                                    []
-                                    [{- TODO: icon user, icon arrowRight -}]
-                            ]
-                        ]
-                    ]
+            [ html div [ bulma.tile ] <|
+                [ viewSidebar model.client model.exercises
+                , viewSchedule model.weeksToProject model.client model.exercises
                 ]
-            , html div [ bulma.tile ] <|
-                if model.showSidebar then
-                    [ viewSidebar model.client model.exercises
-                    , viewSchedule model.weeksToProject model.client model.exercises
-                    ]
-                else
-                    [ viewSchedule model.weeksToProject model.client model.exercises
-                    ]
             ]
         ]
 
@@ -191,8 +162,8 @@ viewSidebar client exercises =
             [ is.parent ]
             [ html div
                 [ bulma.notification, is.white ]
-                [ html h1 [ bulma.label ] [ Ui.text client.name ]
-                , html label [ bulma.label ] [ Ui.text "Schedule" ]
+                [ html h1 [ bulma.title ] [ string client.name ]
+                , html label [ bulma.label ] [ string "Schedule" ]
                 , html div
                     [ bulma.field, has.addons ]
                     [ dayOfWeek client.schedule Date.Mon
@@ -206,11 +177,11 @@ viewSidebar client exercises =
                 , html hr [] []
                 , html div
                     [ bulma.field ]
-                    [ html label [ bulma.label ] [ Ui.text "Exercises" ]
+                    [ html label [ bulma.label ] [ string "Exercises" ]
                     , html div
                         [ bulma.control, has.iconsLeft ]
-                        [ {- TODO: icon search -}
-                          html input
+                        [ icon "search"
+                        , html input
                             [ bulma.input, placeholder "Add an exercise..." ]
                             []
                         ]
@@ -231,10 +202,7 @@ viewExercise exercise =
             [ bulma.level ]
             [ html div
                 [ bulma.levelLeft ]
-                [ html h2
-                    [ bulma.subtitle ]
-                    [ Ui.text exercise.name ]
-                ]
+                [ html h2 [ bulma.subtitle ] [ string exercise.name ] ]
             , html div
                 [ bulma.levelRight ]
                 [ html button
@@ -242,12 +210,12 @@ viewExercise exercise =
                     , is.danger
                     , is.outlined
                     ]
-                    [{- TODO: icon delete -}]
+                    [ icon "minus-circle" ]
                 ]
             ]
         , html div [ bulma.tags ] <|
             List.map
-                (\name -> html div [ bulma.tag ] [ Ui.text name ])
+                (\name -> html div [ bulma.tag ] [ string name ])
                 exercise.features
         ]
 
@@ -257,9 +225,10 @@ dayOfWeek schedule day =
     html div
         [ bulma.control ]
         [ html button
-            -- TODO: is.selected <| List.member day schedule
-            [ bulma.button, onClick <| SetSchedule day ]
-            [ Ui.text <| Days.toString day ]
+            (scheduleAttrs schedule day
+                ++ [ bulma.button, onClick <| SetSchedule day ]
+            )
+            [ string <| Days.toString day ]
         ]
 
 
@@ -279,7 +248,7 @@ viewSchedule weeksToProject client exercises =
                     [ bulma.tile, is.parent ]
                     [ html button
                         [ bulma.button, bulma.tile, is.child, onClick LoadMore ]
-                        [ Ui.text "Load more" ]
+                        [ string "Load more" ]
                     ]
                ]
 
@@ -293,22 +262,25 @@ viewWorkout : { workout : List Movement } -> Element Msg
 viewWorkout { workout } =
     html div
         [ bulma.tile, is.parent ]
-        [ html div [ bulma.notification, bulma.tile, is.child, is.light ] <|
-            List.map viewMovement workout
+        [ html div
+            [ bulma.notification, bulma.tile, is.child, is.light ]
+            (List.map viewMovement workout)
         ]
 
 
 viewMovement : Movement -> Element Msg
 viewMovement movement =
-    Ui.embed
+    concat
         [ html div
             [ bulma.columns ]
             [ html div
                 [ bulma.column ]
-                [ html h2 [ bulma.subtitle ] [ Ui.text movement.name ]
+                [ html h2 [ bulma.subtitle ] [ string movement.name ]
                 , html div
                     [ bulma.level ]
-                    [ html div [ bulma.levelItem ] [ viewSetsReps movement.sets movement.reps ]
+                    [ html div
+                        [ bulma.levelItem ]
+                        [ viewSetsReps movement.sets movement.reps ]
                     , html div [ bulma.levelItem ] [ viewLoad movement.load ]
                     ]
                 ]
@@ -318,12 +290,12 @@ viewMovement movement =
 
 viewSetsReps : Int -> Int -> Element msg
 viewSetsReps sets reps =
-    Ui.embed
-        [ html span [ has.textWeightBold ] [ Ui.text <| toString sets ]
+    concat
+        [ html span [ has.textWeightBold ] [ string <| toString sets ]
         , nbsp
-        , Ui.text "×"
+        , string "×"
         , nbsp
-        , html span [ has.textWeightBold ] [ Ui.text <| toString reps ]
+        , html span [ has.textWeightBold ] [ string <| toString reps ]
         ]
 
 
@@ -331,10 +303,10 @@ viewLoad : Maybe Resources.Load -> Element msg
 viewLoad load =
     let
         toElement n unit =
-            Ui.embed
-                [ html span [ has.textWeightBold ] [ Ui.text <| toString n ]
+            concat
+                [ html span [ has.textWeightBold ] [ string <| toString n ]
                 , nbsp
-                , Ui.text <| pluralize n unit
+                , string <| pluralize n unit
                 ]
     in
     case load of
@@ -346,6 +318,14 @@ viewLoad load =
 
         Just (Resources.Lbs n) ->
             toElement n "lb"
+
+
+scheduleAttrs : List Date.Day -> Date.Day -> List (Attribute msg)
+scheduleAttrs schedule day =
+    if List.member day schedule then
+        [ is.selected, is.info ]
+    else
+        []
 
 
 onInt : (Int -> msg) -> Attribute msg

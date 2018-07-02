@@ -13,8 +13,8 @@ import Ui exposing (..)
 
 type alias Model =
     { exercise : Exercise
-    , levels : List Layer
-    , draggingMovement : Maybe ( Int, Movement )
+    , steps : List Step
+    , draggingMovement : Maybe ( Int, Int )
     }
 
 
@@ -22,39 +22,24 @@ type alias Exercise =
     { name : String }
 
 
-type alias Layer =
-    { movements : List Movement }
+type Step
+    = Movements (List Movement)
+    | Interval Int
 
 
 type alias Movement =
     { name : String
     , sets : Int
     , reps : Int
-    , notes : String
+    , load : String
     }
 
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
     Task.map3 Model
-        (pg context <| getExercise id)
-        (Task.succeed
-            [ Layer
-                [ { name = "1/2 Foam Roller Hamstring Stretch", sets = 1, reps = 3, notes = "" }
-                ]
-            , Layer
-                [ { name = "Active Straight Leg Raise With Assist "
-                  , sets = 1
-                  , reps = 3
-                  , notes = ""
-                  }
-                ]
-            , Layer
-                [ { name = "Foam Roll Hip Hinge", sets = 1, reps = 3, notes = "" }
-                , { name = "ViPR Hip Hinge", sets = 1, reps = 3, notes = "" }
-                ]
-            ]
-        )
+        (pg context (getExercise id))
+        (Task.succeed [ newMovements ])
         (Task.succeed Nothing)
 
 
@@ -79,9 +64,7 @@ getExercise id =
 
 type Msg
     = NoOp
-    | AddLevel
-    | StartDrag Int Movement
-    | EndDrag Int
+    | AddStep
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -90,46 +73,18 @@ update context msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        AddLevel ->
-            ( { model | levels = model.levels ++ [ newLayer ] }, Cmd.none )
-
-        StartDrag index movement ->
-            ( { model | draggingMovement = Just ( index, movement ) }, Cmd.none )
-
-        EndDrag index ->
-            ( { model
-                | draggingMovement = Nothing
-                , levels = moveMovement index model.draggingMovement model.levels
-              }
-            , Cmd.none
-            )
+        AddStep ->
+            ( { model | steps = addNewSteps model.steps }, Cmd.none )
 
 
-newLayer : Layer
-newLayer =
-    Layer [ { name = "Jumping jacks", reps = 15, sets = 1, notes = "" } ]
+addNewSteps : List Step -> List Step
+addNewSteps old =
+    old ++ [ Interval 2, newMovements ]
 
 
-moveMovement : Int -> Maybe ( Int, Movement ) -> List Layer -> List Layer
-moveMovement newIndex dragging levels =
-    case dragging of
-        Nothing ->
-            levels
-
-        Just ( oldIndex, movement ) ->
-            if oldIndex /= newIndex then
-                levels
-            else
-                List.indexedMap
-                    (\index layer ->
-                        if index == oldIndex then
-                            Layer <| List.filter ((==) movement) layer.movements
-                        else if index == newIndex then
-                            Layer <| movement :: layer.movements
-                        else
-                            layer
-                    )
-                    levels
+newMovements : Step
+newMovements =
+    Movements [ { name = "Jumping jacks", reps = 15, sets = 1, load = "" } ]
 
 
 view : Model -> Element Msg
@@ -138,113 +93,150 @@ view model =
         [ bulma.columns ]
         [ html div
             [ bulma.column ]
-            [ Ui.embed <|
-                List.intersperse viewInterval
-                    (List.indexedMap viewLayer model.levels)
-            , html hr [] []
-            , html div
-                [ bulma.level ]
-                [ html div
-                    [ bulma.levelItem ]
-                    [ html button
-                        [ bulma.button
-                        , is.outlined
-                        , is.primary
-                        , onClick AddLevel
-                        ]
-                        [ icon "plus" []
-                        , html span [] [ Ui.text "Add another step" ]
-                        ]
-                    ]
-                ]
+            [ viewHeader model.exercise
+            , concat <| List.map viewStep model.steps
+            , viewFooter
             ]
         ]
 
 
-viewInterval =
+viewHeader : Exercise -> Element Msg
+viewHeader { name } =
+    concat
+        [ html div
+            [ bulma.level ]
+            [ html div
+                [ bulma.levelLeft ]
+                [ html div
+                    [ bulma.levelItem ]
+                    [ html h1 [ bulma.title ] [ string name ]
+                    ]
+                ]
+            , html div
+                [ bulma.levelRight ]
+                [ html div
+                    [ bulma.levelItem ]
+                    [ html button
+                        [ bulma.button, is.primary ]
+                        [ icon "check"
+                        , html span [] [ string "Save" ]
+                        ]
+                    ]
+                ]
+            ]
+        , html hr [] []
+        ]
+
+
+viewStep : Step -> Element Msg
+viewStep step =
+    case step of
+        Movements movements ->
+            List.map viewMovement movements
+                |> List.intersperse viewOr
+                |> html div [ bulma.level ]
+
+        Interval weeks ->
+            viewInterval weeks
+
+
+viewInterval : Int -> Element msg
+viewInterval weeks =
     html div
         [ bulma.notification, has.backgroundLight ]
         [ html div
             [ bulma.level ]
             [ html div [ bulma.levelItem ] <|
                 List.intersperse nbsp <|
-                    [ Ui.text "progress in"
-                    , numberInput "2" {- TODO -} 2
-                    , Ui.text "weeks"
+                    [ string "progress in "
+                    , numberInput "" weeks
+                    , string " weeks"
                     ]
             ]
         ]
 
 
-viewLayer : Int -> Layer -> Element Msg
-viewLayer index { movements } =
-    html div [ bulma.level, onMouseUp <| EndDrag index ] <|
-        List.intersperse
-            (html div
-                [ bulma.levelItem ]
-                [ html button [ bulma.button, is.static ] [ Ui.text "OR" ] ]
-            )
-        <|
-            List.map (viewMovement index) movements
+viewOr : Element msg
+viewOr =
+    html div
+        [ bulma.levelItem ]
+        [ html button [ bulma.button, is.static ] [ string "OR" ] ]
 
 
-viewMovement : Int -> Movement -> Element Msg
-viewMovement index movement =
+viewMovement : Movement -> Element Msg
+viewMovement movement =
     html div
         [ bulma.levelItem ]
         [ html div
-            [ bulma.box ]
+            [ bulma.box, cursorGrab, draggable "true" ]
+            [ viewMovementHeader
+            , viewMovementName movement.name
+            , viewMovementDetails movement.sets movement.reps movement.load
+            ]
+        ]
+
+
+viewMovementHeader : Element Msg
+viewMovementHeader =
+    html div
+        [ bulma.field ]
+        [ html div
+            [ bulma.control ]
             [ html div
-                [ bulma.columns ]
-                [ html
-                    div
-                    [ bulma.column ]
-                    [ html div
-                        [ bulma.level ]
-                        [ html div
-                            [ bulma.levelLeft ]
-                            [ html div
-                                [ bulma.field ]
-                                [ html input
-                                    [ bulma.input
-                                    , is.medium
-                                    , defaultValue movement.name
-                                    ]
-                                    []
-                                ]
-                            ]
-                        , html div
-                            [ bulma.levelRight ]
-                            [ html button
-                                [ bulma.button
-                                , is.white
-                                , has.textGrey
-                                , cursorGrab
-                                , onMouseDown <| StartDrag index movement
-                                ]
-                                [ icon "grip-horizontal" [] ]
-                            ]
+                [ bulma.select ]
+                [ html select
+                    []
+                    [ html option [] [ string "Movement Prep" ]
+                    , html option [] [ string "Resistance Training" ]
+                    ]
+                ]
+            ]
+        ]
+
+
+viewMovementName : String -> Element msg
+viewMovementName name =
+    html div
+        [ bulma.field ]
+        [ html div
+            [ bulma.control ]
+            [ html input
+                [ bulma.input, is.medium, type_ "text", defaultValue name ]
+                []
+            ]
+        ]
+
+
+viewMovementDetails : Int -> Int -> String -> Element msg
+viewMovementDetails sets reps load =
+    html div
+        [ bulma.level ]
+        [ html div [ bulma.levelItem ] [ numberInput "sets" sets ]
+        , html div [ bulma.levelItem ] [ nbsp, string "×", nbsp ]
+        , html div [ bulma.levelItem ] [ numberInput "reps" reps ]
+        , html div [ bulma.levelItem ] [ nbsp, string "@", nbsp ]
+        , html div [ bulma.levelItem ] [ loadInput load ]
+        ]
+
+
+viewFooter : Element Msg
+viewFooter =
+    concat
+        [ html hr [] []
+        , html div
+            [ bulma.level ]
+            [ html div
+                [ bulma.levelItem ]
+                [ html div
+                    [ bulma.buttons ]
+                    [ html button
+                        [ bulma.button
+                        , is.outlined
+                        , is.primary
+                        , onClick AddStep
                         ]
-                    , html label
-                        [ bulma.checkbox ]
-                        [ html input [ type_ "checkbox" ] []
-                        , Ui.text " movement prep"
-                        ]
-                    , html hr [] []
-                    , html div
-                        [ bulma.level ]
-                        [ html div [ bulma.levelItem ] [ numberInput "sets" movement.sets ]
-                        , html div [ bulma.levelItem ] [ nbsp, Ui.text "×", nbsp ]
-                        , html div [ bulma.levelItem ] [ numberInput "reps" movement.reps ]
-                        ]
-                    , html div
-                        [ bulma.field ]
-                        [ html textarea
-                            [ bulma.textarea
-                            , placeholder "30 kgs, sitting down, other notes..."
-                            , Html.Attributes.rows 2
-                            ]
-                            []
+                        [ icon "tasks"
+                        , html span [] [ string "Add progression" ]
                         ]
                     ]
                 ]
@@ -260,6 +252,23 @@ numberInput name n =
             [ bulma.input
             , type_ "number"
             , placeholder name
+            , defaultValue (toString n)
+            , style [ ( "width", "4rem" ) ]
+            ]
+            []
+        ]
+
+
+loadInput : String -> Element msg
+loadInput content =
+    html div
+        [ bulma.field ]
+        [ html input
+            [ bulma.input
+            , type_ "text"
+            , placeholder "loads"
+            , defaultValue content
+            , style [ ( "width", "10rem" ) ]
             ]
             []
         ]
@@ -267,7 +276,7 @@ numberInput name n =
 
 cursorGrab : Attribute msg
 cursorGrab =
-    Html.Attributes.style
+    style
         [ ( "cursor", "grab" )
         , ( "cursor", "-webkit-grab" )
         ]
