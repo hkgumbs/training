@@ -14,7 +14,7 @@ import Ui exposing (..)
 type alias Model =
     { exercise : Exercise
     , steps : List Step
-    , draggingMovement : Maybe ( Int, Int )
+    , hover : Maybe Reference
     }
 
 
@@ -33,6 +33,10 @@ type alias Movement =
     , reps : Int
     , load : String
     }
+
+
+type alias Reference =
+    { step : Int, movement : Int }
 
 
 init : Global.Context -> String -> Task Global.Error Model
@@ -65,6 +69,8 @@ getExercise id =
 type Msg
     = NoOp
     | AddStep
+    | SetHover (Maybe Reference)
+    | Delete Reference
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -74,17 +80,82 @@ update context msg model =
             ( model, Cmd.none )
 
         AddStep ->
-            ( { model | steps = addNewSteps model.steps }, Cmd.none )
+            ( { model | steps = model.steps ++ [ newInterval, newMovements ] }, Cmd.none )
+
+        SetHover ref ->
+            ( { model | hover = ref }, Cmd.none )
+
+        Delete ref ->
+            ( { model | steps = fixSteps <| removeMovement ref model.steps }, Cmd.none )
 
 
-addNewSteps : List Step -> List Step
-addNewSteps old =
-    old ++ [ Interval 2, newMovements ]
+newInterval : Step
+newInterval =
+    Interval 2
 
 
 newMovements : Step
 newMovements =
-    Movements [ { name = "Jumping jacks", reps = 15, sets = 1, load = "" } ]
+    Movements [ { name = "", reps = 10, sets = 1, load = "" } ]
+
+
+removeMovement : Reference -> List Step -> List Step
+removeMovement { step, movement } =
+    editMovementsAt step <|
+        \movements ->
+            mapAt movement Just (\_ -> Nothing) movements
+                |> List.filterMap identity
+
+
+editMovementsAt : Int -> (List Movement -> List Movement) -> List Step -> List Step
+editMovementsAt index f =
+    mapAt index identity <|
+        \step ->
+            case step of
+                Interval _ ->
+                    step
+
+                Movements movements ->
+                    Movements <| f movements
+
+
+fixSteps : List Step -> List Step
+fixSteps steps =
+    case steps of
+        -- collapse any empty movements
+        (Movements []) :: (Interval _) :: rest ->
+            fixSteps rest
+
+        ((Movements _) as first) :: (Interval _) :: (Movements []) :: rest ->
+            first :: fixSteps rest
+
+        -- ensure alternates with movements on each end
+        ((Movements _) as first) :: ((Interval _) as second) :: rest ->
+            first :: second :: fixSteps rest
+
+        -- insert a new interval if one is missing
+        ((Movements _) as first) :: ((Movements _) as second) :: rest ->
+            first :: newInterval :: second :: fixSteps rest
+
+        -- skip any extra intervals
+        (Interval _) :: rest ->
+            fixSteps rest
+
+        ((Movements _) as final) :: [] ->
+            [ final ]
+
+        [] ->
+            []
+
+
+mapAt : Int -> (a -> b) -> (a -> b) -> List a -> List b
+mapAt index default ifMatch =
+    List.indexedMap <|
+        \i x ->
+            if i == index then
+                ifMatch x
+            else
+                default x
 
 
 view : Model -> Element Msg
@@ -94,7 +165,10 @@ view model =
         [ html div
             [ bulma.column ]
             [ viewHeader model.exercise
-            , concat <| List.map viewStep model.steps
+            , concat <|
+                List.indexedMap
+                    (viewStep model.hover (List.length model.steps))
+                    model.steps
             , viewFooter
             ]
         ]
@@ -109,7 +183,7 @@ viewHeader { name } =
                 [ bulma.levelLeft ]
                 [ html div
                     [ bulma.levelItem ]
-                    [ html h1 [ bulma.title ] [ string name ]
+                    [ html input [ bulma.input, is.large, value name ] []
                     ]
                 ]
             , html div
@@ -117,7 +191,7 @@ viewHeader { name } =
                 [ html div
                     [ bulma.levelItem ]
                     [ html button
-                        [ bulma.button, is.primary ]
+                        [ bulma.button, is.primary, is.large ]
                         [ icon "check"
                         , html span [] [ string "Save" ]
                         ]
@@ -128,11 +202,13 @@ viewHeader { name } =
         ]
 
 
-viewStep : Step -> Element Msg
-viewStep step =
+viewStep : Maybe Reference -> Int -> Int -> Step -> Element Msg
+viewStep hover total index step =
     case step of
         Movements movements ->
-            List.map viewMovement movements
+            List.indexedMap
+                (viewMovement hover (total == index + 1) index)
+                movements
                 |> List.intersperse viewOr
                 |> html div [ bulma.level ]
 
@@ -147,11 +223,8 @@ viewInterval weeks =
         [ html div
             [ bulma.level ]
             [ html div [ bulma.levelItem ] <|
-                List.intersperse nbsp <|
-                    [ string "progress in "
-                    , numberInput "" weeks
-                    , string " weeks"
-                    ]
+                List.intersperse nbsp
+                    [ string "progress in ", numberInput "" weeks, string " weeks" ]
             ]
         ]
 
@@ -163,15 +236,33 @@ viewOr =
         [ html button [ bulma.button, is.static ] [ string "OR" ] ]
 
 
-viewMovement : Movement -> Element Msg
-viewMovement movement =
+viewMovement : Maybe Reference -> Bool -> Int -> Int -> Movement -> Element Msg
+viewMovement hover atEnd step index movement =
+    let
+        here =
+            { step = step, movement = index }
+    in
     html div
         [ bulma.levelItem ]
         [ html div
-            [ bulma.box, cursorGrab, draggable "true" ]
-            [ viewMovementHeader
-            , viewMovementName movement.name
-            , viewMovementDetails movement.sets movement.reps movement.load
+            [ bulma.box
+            , onMouseLeave (SetHover Nothing)
+            , onMouseEnter (SetHover <| Just here)
+            ]
+            [ html div
+                [ bulma.media ]
+                [ html div
+                    [ bulma.mediaContent ]
+                    [ viewMovementHeader
+                    , viewMovementName movement.name
+                    , viewMovementDetails movement.sets movement.reps movement.load
+                    ]
+                , html div
+                    [ bulma.mediaRight
+                    , is.invisible |> when (hover /= Just here)
+                    ]
+                    [ viewMovementActions atEnd here ]
+                ]
             ]
         ]
 
@@ -201,7 +292,7 @@ viewMovementName name =
         [ html div
             [ bulma.control ]
             [ html input
-                [ bulma.input, is.medium, type_ "text", defaultValue name ]
+                [ bulma.input, is.medium, type_ "text", value name ]
                 []
             ]
         ]
@@ -219,6 +310,30 @@ viewMovementDetails sets reps load =
         ]
 
 
+viewMovementActions : Bool -> Reference -> Element Msg
+viewMovementActions atEnd here =
+    let
+        break =
+            concat [ html br [] [], html br [] [] ]
+    in
+    concat <|
+        List.intersperse break
+            [ html button
+                [ bulma.button, is.light, disabled <| here.step == 0 ]
+                [ icon "level-up-alt" ]
+            , html button
+                [ bulma.button
+                , is.danger
+                , is.inverted
+                , onClick (Delete here)
+                ]
+                [ icon "trash" ]
+            , html button
+                [ bulma.button, is.light, disabled atEnd ]
+                [ icon "level-down-alt" ]
+            ]
+
+
 viewFooter : Element Msg
 viewFooter =
     concat
@@ -227,21 +342,16 @@ viewFooter =
             [ bulma.level ]
             [ html div
                 [ bulma.levelItem ]
-                [ html div
-                    [ bulma.buttons ]
-                    [ html button
-                        [ bulma.button
-                        , is.outlined
-                        , is.primary
-                        , onClick AddStep
-                        ]
-                        [ icon "tasks"
-                        , html span [] [ string "Add progression" ]
-                        ]
-                    ]
-                ]
+                [ html div [ bulma.buttons ] [ viewStepButton ] ]
             ]
         ]
+
+
+viewStepButton : Element Msg
+viewStepButton =
+    html button
+        [ bulma.button, is.outlined, is.primary, onClick AddStep ]
+        [ icon "tasks", html span [] [ string "Add progression" ] ]
 
 
 numberInput : String -> Int -> Element msg
@@ -252,7 +362,7 @@ numberInput name n =
             [ bulma.input
             , type_ "number"
             , placeholder name
-            , defaultValue (toString n)
+            , value (toString n)
             , style [ ( "width", "4rem" ) ]
             ]
             []
@@ -266,17 +376,9 @@ loadInput content =
         [ html input
             [ bulma.input
             , type_ "text"
-            , placeholder "loads"
-            , defaultValue content
+            , placeholder "load(s)"
+            , value content
             , style [ ( "width", "10rem" ) ]
             ]
             []
-        ]
-
-
-cursorGrab : Attribute msg
-cursorGrab =
-    style
-        [ ( "cursor", "grab" )
-        , ( "cursor", "-webkit-grab" )
         ]

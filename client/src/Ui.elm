@@ -11,6 +11,7 @@ module Ui
         , nbsp
         , string
         , toHtml
+        , when
         )
 
 import Char
@@ -89,6 +90,14 @@ icon name =
     El Html.span [ bulma.icon ] [ El Html.i [ class <| "fas fa-" ++ name ] [] ]
 
 
+when : Bool -> Attribute msg -> Attribute msg
+when condition attr =
+    if condition then
+        attr
+    else
+        class ""
+
+
 
 -- BULMA CLASSES
 
@@ -114,6 +123,7 @@ is :
     , danger : Attribute msg
     , light : Attribute msg
     , white : Attribute msg
+    , invisible : Attribute msg
 
     -- FORMS
     , expanded : Attribute msg
@@ -124,6 +134,7 @@ is :
     , selected : Attribute msg
     , static : Attribute msg
     , outlined : Attribute msg
+    , inverted : Attribute msg
 
     -- TILES
     , ancestor : Attribute msg
@@ -149,12 +160,14 @@ is =
     , danger = class "is-danger"
     , light = class "is-light"
     , white = class "is-white"
+    , invisible = class "is-invisible"
     , expanded = class "is-expanded"
     , large = class "is-large"
     , medium = class "is-medium"
     , selected = class "is-selected"
     , static = class "is-static"
     , outlined = class "is-outlined"
+    , inverted = class "is-inverted"
     , ancestor = class "is-ancestor"
     , parent = class "is-parent"
     , child = class "is-child"
@@ -170,6 +183,7 @@ has :
     , textLight : Attribute msg
     , textWhite : Attribute msg
     , textGrey : Attribute msg
+    , textCentered : Attribute msg
 
     -- BACKGROUND COLOR
     , backgroundPrimary : Attribute msg
@@ -197,6 +211,7 @@ has =
     , textLight = class "has-text-light"
     , textWhite = class "has-text-white"
     , textGrey = class "has-text-grey"
+    , textCentered = class "has-text-centered"
     , backgroundPrimary = class "has-background-primary"
     , backgroundInfo = class "has-background-info"
     , backgroundDanger = class "has-background-danger"
@@ -231,6 +246,11 @@ bulma :
     , textarea : Attribute msg
     , button : Attribute msg
     , buttons : Attribute msg
+    , delete : Attribute msg
+    , media : Attribute msg
+    , mediaContent : Attribute msg
+    , mediaLeft : Attribute msg
+    , mediaRight : Attribute msg
     , columns : Attribute msg
     , column : Attribute msg
     , multiline : Attribute msg
@@ -257,6 +277,11 @@ bulma =
     , textarea = class "textarea"
     , button = class "button"
     , buttons = class "buttons"
+    , delete = class "delete"
+    , media = class "media"
+    , mediaContent = class "media-content"
+    , mediaLeft = class "media-left"
+    , mediaRight = class "media-right"
     , columns = class "columns"
     , column = class "column"
     , multiline = class "multiline"

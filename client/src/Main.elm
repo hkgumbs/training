@@ -131,6 +131,23 @@ load page result =
             Loaded (page data)
 
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.map PageMsg <|
+        case model.page of
+            Blank ->
+                Sub.none
+
+            Dashboard page ->
+                Sub.none
+
+            Client page ->
+                Sub.none
+
+            Exercise page ->
+                Sub.none
+
+
 view : Model -> Html.Html Msg
 view { page } =
     Html.map PageMsg <|
@@ -155,5 +172,5 @@ main =
         { view = view
         , init = init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
