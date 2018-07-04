@@ -1,7 +1,6 @@
 module Exercise.Page exposing (Model, Msg, init, update, view)
 
 import Global
-import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
@@ -159,9 +158,9 @@ mapAt index default ifMatch =
 
 view : Model -> Element Msg
 view model =
-    html div
+    el
         [ bulma.columns ]
-        [ html div
+        [ el
             [ bulma.column ]
             [ viewHeader model.exercise
             , concat <|
@@ -176,30 +175,27 @@ view model =
 viewHeader : Exercise -> Element Msg
 viewHeader { name } =
     concat
-        [ html div
+        [ el
             [ bulma.level ]
-            [ html div
+            [ el
                 [ bulma.levelLeft ]
-                [ html div
+                [ el
                     [ bulma.levelItem ]
-                    [ html input
-                        [ bulma.input, is.large, value name ]
-                        []
-                    ]
+                    [ input [ bulma.input, is.large, value name ] ]
                 ]
-            , html div
+            , el
                 [ bulma.levelRight ]
-                [ html div
+                [ el
                     [ bulma.levelItem ]
-                    [ html button
+                    [ button
                         [ bulma.button, is.primary, is.large ]
                         [ icon "check"
-                        , html span [] [ string "Save" ]
+                        , el [] [ text "Save" ]
                         ]
                     ]
                 ]
             ]
-        , html hr [] []
+        , hr
         ]
 
 
@@ -211,7 +207,7 @@ viewStep hover total index step =
                 (viewMovement hover (total == index + 1) index)
                 movements
                 |> List.intersperse viewOr
-                |> html div [ bulma.level ]
+                |> el [ bulma.level ]
 
         Interval weeks ->
             viewInterval weeks
@@ -219,22 +215,22 @@ viewStep hover total index step =
 
 viewInterval : Int -> Element msg
 viewInterval weeks =
-    html div
+    el
         [ bulma.notification, has.backgroundLight ]
-        [ html div
+        [ el
             [ bulma.level ]
-            [ html div [ bulma.levelItem ] <|
+            [ el [ bulma.levelItem ] <|
                 List.intersperse nbsp
-                    [ string "progress in ", numberInput "" weeks, string " weeks" ]
+                    [ text "progress in ", numberInput "" weeks, text " weeks" ]
             ]
         ]
 
 
 viewOr : Element msg
 viewOr =
-    html div
+    el
         [ bulma.levelItem ]
-        [ html button [ bulma.button, is.static ] [ string "OR" ] ]
+        [ button [ bulma.button, is.static ] [ text "OR" ] ]
 
 
 viewMovement : Maybe Reference -> Bool -> Int -> Int -> Movement -> Element Msg
@@ -243,22 +239,22 @@ viewMovement hover atEnd step index movement =
         here =
             { step = step, movement = index }
     in
-    html div
+    el
         [ bulma.levelItem ]
-        [ html div
+        [ el
             [ bulma.box
             , onMouseLeave (SetHover Nothing)
             , onMouseEnter (SetHover <| Just here)
             ]
-            [ html div
+            [ el
                 [ bulma.media ]
-                [ html div
+                [ el
                     [ bulma.mediaContent ]
                     [ viewMovementHeader
                     , viewMovementName movement.name
                     , viewMovementDetails movement.sets movement.reps movement.load
                     ]
-                , html div
+                , el
                     [ bulma.mediaRight
                     , is.invisible |> when (hover /= Just here)
                     ]
@@ -270,16 +266,16 @@ viewMovement hover atEnd step index movement =
 
 viewMovementHeader : Element Msg
 viewMovementHeader =
-    html div
+    el
         [ bulma.field ]
-        [ html div
+        [ el
             [ bulma.control ]
-            [ html div
+            [ el
                 [ bulma.select ]
-                [ html select
+                [ select
                     []
-                    [ html option [] [ string "Movement Prep" ]
-                    , html option [] [ string "Resistance Training" ]
+                    [ option [] [ text "Movement Prep" ]
+                    , option [] [ text "Resistance Training" ]
                     ]
                 ]
             ]
@@ -288,31 +284,30 @@ viewMovementHeader =
 
 viewMovementName : String -> Element msg
 viewMovementName name =
-    html div
+    el
         [ bulma.field ]
-        [ html div
+        [ el
             [ bulma.control ]
-            [ html input
+            [ input
                 [ bulma.input
                 , is.medium
                 , type_ "text"
                 , placeholder "Movement name"
                 , value name
                 ]
-                []
             ]
         ]
 
 
 viewMovementDetails : Int -> Int -> String -> Element msg
 viewMovementDetails sets reps load =
-    html div
+    el
         [ bulma.level ]
-        [ html div [ bulma.levelItem ] [ numberInput "sets" sets ]
-        , html div [ bulma.levelItem ] [ nbsp, string "×", nbsp ]
-        , html div [ bulma.levelItem ] [ numberInput "reps" reps ]
-        , html div [ bulma.levelItem ] [ nbsp, string "@", nbsp ]
-        , html div [ bulma.levelItem ] [ loadInput load ]
+        [ el [ bulma.levelItem ] [ numberInput "sets" sets ]
+        , el [ bulma.levelItem ] [ nbsp, text "×", nbsp ]
+        , el [ bulma.levelItem ] [ numberInput "reps" reps ]
+        , el [ bulma.levelItem ] [ nbsp, text "@", nbsp ]
+        , el [ bulma.levelItem ] [ loadInput load ]
         ]
 
 
@@ -320,21 +315,21 @@ viewMovementActions : Bool -> Reference -> Element Msg
 viewMovementActions atEnd here =
     let
         break =
-            concat [ html br [] [], html br [] [] ]
+            concat [ br, br ]
     in
     concat <|
         List.intersperse break
-            [ html button
+            [ button
                 [ bulma.button, is.light, disabled <| here.step == 0 ]
                 [ icon "level-up-alt" ]
-            , html button
+            , button
                 [ bulma.button
                 , is.danger
                 , is.inverted
                 , onClick (Delete here)
                 ]
                 [ icon "trash" ]
-            , html button
+            , button
                 [ bulma.button, is.light, disabled atEnd ]
                 [ icon "level-down-alt" ]
             ]
@@ -343,48 +338,46 @@ viewMovementActions atEnd here =
 viewFooter : Element Msg
 viewFooter =
     concat
-        [ html hr [] []
-        , html div
+        [ hr
+        , el
             [ bulma.level ]
-            [ html div
+            [ el
                 [ bulma.levelItem ]
-                [ html div [ bulma.buttons ] [ viewStepButton ] ]
+                [ el [ bulma.buttons ] [ viewStepButton ] ]
             ]
         ]
 
 
 viewStepButton : Element Msg
 viewStepButton =
-    html button
+    button
         [ bulma.button, is.outlined, is.primary, onClick AddStep ]
-        [ icon "tasks", html span [] [ string "Add progression" ] ]
+        [ icon "tasks", el [] [ text "Add progression" ] ]
 
 
 numberInput : String -> Int -> Element msg
 numberInput name n =
-    html div
+    el
         [ bulma.field ]
-        [ html input
+        [ input
             [ bulma.input
             , type_ "number"
             , placeholder name
             , value (toString n)
             , style [ ( "width", "4rem" ) ]
             ]
-            []
         ]
 
 
 loadInput : String -> Element msg
 loadInput content =
-    html div
+    el
         [ bulma.field ]
-        [ html input
+        [ input
             [ bulma.input
             , type_ "text"
             , placeholder "load(s)"
             , value content
             , style [ ( "width", "10rem" ) ]
             ]
-            []
         ]

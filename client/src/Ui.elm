@@ -1,30 +1,48 @@
 module Ui
     exposing
-        ( Element
+        ( Attribute
+        , Element
+        , a
+        , br
         , bulma
+        , button
         , concat
+        , el
         , empty
+        , h1
+        , h2
         , has
-        , html
+        , hr
         , icon
+        , input
         , is
+        , label
         , nbsp
-        , string
+        , option
+        , select
+        , text
         , toHtml
         , when
         )
 
 import Char
-import Html exposing (Attribute, Html)
+import Html exposing (Html)
 import Html.Attributes exposing (class)
 
 
-{-| Thin wrapper around Html to keep things composable
+{-| Thin wrapper around Html to keep wiht the following goals:
+1. Allow arbitrary composition with `concat`
+2. Limit choice to semantic elements
+3. Mirror the Bulma API for learnability
 -}
 type Element msg
     = Text String
     | Concat (List (Element msg))
-    | El (List (Attribute msg) -> List (Html msg) -> Html msg) (List (Attribute msg)) (List (Element msg))
+    | El String (List (Attribute msg)) (List (Element msg))
+
+
+type alias Attribute msg =
+    Html.Attribute msg
 
 
 toHtml : (a -> msg) -> List (Element a) -> Html.Html msg
@@ -48,12 +66,12 @@ nested element =
         Text raw ->
             [ Html.text raw ]
 
-        El toNode attrs children ->
-            [ toNode attrs <| List.concatMap nested children ]
+        El name attrs children ->
+            [ Html.node name attrs <| List.concatMap nested children ]
 
 
 
--- HELPERS
+-- SEMANTIC ELEMENTS
 
 
 empty : Element msg
@@ -61,33 +79,79 @@ empty =
     Concat []
 
 
-nbsp : Element msg
-nbsp =
-    Text <| String.fromChar <| Char.fromCode 0xA0
-
-
-string : String -> Element msg
-string =
-    Text
-
-
-html :
-    (List (Attribute msg) -> List (Html msg) -> Html msg)
-    -> List (Attribute msg)
-    -> List (Element msg)
-    -> Element msg
-html =
-    El
-
-
 concat : List (Element msg) -> Element msg
 concat =
     Concat
 
 
+text : String -> Element msg
+text =
+    Text
+
+
+nbsp : Element msg
+nbsp =
+    Text <| String.fromChar <| Char.fromCode 0xA0
+
+
+hr : Element msg
+hr =
+    El "hr" [] []
+
+
+br : Element msg
+br =
+    El "br" [] []
+
+
+el : List (Attribute msg) -> List (Element msg) -> Element msg
+el =
+    El "div"
+
+
+a : List (Attribute msg) -> List (Element msg) -> Element msg
+a =
+    El "a"
+
+
+h1 : List (Attribute msg) -> List (Element msg) -> Element msg
+h1 =
+    El "h1"
+
+
+h2 : List (Attribute msg) -> List (Element msg) -> Element msg
+h2 =
+    El "h2"
+
+
+button : List (Attribute msg) -> List (Element msg) -> Element msg
+button =
+    El "button"
+
+
+label : List (Attribute msg) -> List (Element msg) -> Element msg
+label =
+    El "label"
+
+
+select : List (Attribute msg) -> List (Element msg) -> Element msg
+select =
+    El "select"
+
+
+option : List (Attribute msg) -> List (Element msg) -> Element msg
+option =
+    El "option"
+
+
+input : List (Attribute msg) -> Element msg
+input attrs =
+    El "input" attrs []
+
+
 icon : String -> Element msg
 icon name =
-    El Html.span [ bulma.icon ] [ El Html.i [ class <| "fas fa-" ++ name ] [] ]
+    El "span" [ bulma.icon ] [ El "i" [ class <| "fas fa-" ++ name ] [] ]
 
 
 when : Bool -> Attribute msg -> Attribute msg

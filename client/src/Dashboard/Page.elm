@@ -1,7 +1,6 @@
 module Dashboard.Page exposing (Model, Msg, init, update, view)
 
 import Global
-import Html exposing (..)
 import Html.Events exposing (..)
 import Js
 import Task exposing (Task)
@@ -42,6 +41,6 @@ update context msg model =
 view : Model -> Element Msg
 view model =
     if model.authenticated then
-        html button [ onClick Logout ] [ string "LOG OUT" ]
+        button [ onClick Logout ] [ text "LOG OUT" ]
     else
-        html button [ onClick Login ] [ string "LOG IN" ]
+        button [ onClick Login ] [ text "LOG IN" ]

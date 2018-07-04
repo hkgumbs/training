@@ -3,7 +3,6 @@ module Client.Page exposing (Model, Msg, init, update, view)
 import Client.Days as Days
 import Date
 import Global
-import Html exposing (..)
 import Html.Attributes exposing (placeholder)
 import Html.Events exposing (..)
 import Http
@@ -150,11 +149,11 @@ remove a =
 
 view : Model -> Element Msg
 view model =
-    html div
+    el
         [ bulma.tile, is.ancestor ]
-        [ html div
+        [ el
             [ bulma.tile, is.vertical ]
-            [ html div [ bulma.tile ] <|
+            [ el [ bulma.tile ] <|
                 [ viewSidebar model.client model.exercises
                 , viewSchedule model.weeksToProject model.client model.exercises
                 ]
@@ -164,15 +163,15 @@ view model =
 
 viewSidebar : Client -> List Exercise -> Element Msg
 viewSidebar client exercises =
-    html div
+    el
         [ bulma.tile, is.four ]
-        [ html div
+        [ el
             [ is.parent ]
-            [ html div
+            [ el
                 [ bulma.notification, is.white ]
-                [ html h1 [ bulma.title ] [ string client.name ]
-                , html label [ bulma.label ] [ string "Schedule" ]
-                , html div
+                [ h1 [ bulma.title ] [ text client.name ]
+                , label [ bulma.label ] [ text "Schedule" ]
+                , el
                     [ bulma.field, has.addons ]
                     [ viewDay client.schedule Date.Mon
                     , viewDay client.schedule Date.Tue
@@ -182,21 +181,19 @@ viewSidebar client exercises =
                     , viewDay client.schedule Date.Sat
                     , viewDay client.schedule Date.Sun
                     ]
-                , html hr [] []
-                , html div
+                , hr
+                , el
                     [ bulma.field ]
-                    [ html label [ bulma.label ] [ string "Exercises" ]
-                    , html div
+                    [ label [ bulma.label ] [ text "Exercises" ]
+                    , el
                         [ bulma.control, has.iconsLeft ]
                         [ icon "search"
-                        , html input
-                            [ bulma.input, placeholder "Add an exercise..." ]
-                            []
+                        , input [ bulma.input, placeholder "Add an exercise..." ]
                         ]
                     ]
-                , html div
+                , el
                     [ bulma.columns ]
-                    [ html div [ bulma.column ] <| List.map viewExercise exercises ]
+                    [ el [ bulma.column ] <| List.map viewExercise exercises ]
                 ]
             ]
         ]
@@ -204,16 +201,16 @@ viewSidebar client exercises =
 
 viewExercise : Exercise -> Element Msg
 viewExercise exercise =
-    html div
+    el
         [ bulma.box ]
-        [ html div
+        [ el
             [ bulma.level ]
-            [ html div
+            [ el
                 [ bulma.levelLeft ]
-                [ html h2 [ bulma.subtitle ] [ string exercise.name ] ]
-            , html div
+                [ h2 [ bulma.subtitle ] [ text exercise.name ] ]
+            , el
                 [ bulma.levelRight ]
-                [ html button
+                [ button
                     [ bulma.button
                     , is.danger
                     , is.outlined
@@ -221,20 +218,20 @@ viewExercise exercise =
                     [ icon "minus-circle" ]
                 ]
             ]
-        , html div [ bulma.tags ] <|
+        , el [ bulma.tags ] <|
             List.map
-                (\name -> html div [ bulma.tag ] [ string name ])
+                (\name -> el [ bulma.tag ] [ text name ])
                 exercise.features
         ]
 
 
 viewDay : List Date.Day -> Date.Day -> Element Msg
 viewDay schedule day =
-    html div
+    el
         [ bulma.control ]
-        [ html button
+        [ button
             (bulma.button :: scheduleAttrs schedule day)
-            [ string <| Days.toString day ]
+            [ text <| Days.toString day ]
         ]
 
 
@@ -248,27 +245,27 @@ viewSchedule weeksToProject client exercises =
                 , daysPerWeek = List.length client.schedule
                 }
     in
-    html div [ bulma.tile, is.vertical ] <|
+    el [ bulma.tile, is.vertical ] <|
         List.map viewWeek projection
-            ++ [ html div
+            ++ [ el
                     [ bulma.tile, is.parent ]
-                    [ html button
+                    [ button
                         [ bulma.button, bulma.tile, is.child, onClick LoadMore ]
-                        [ string "Load more" ]
+                        [ text "Load more" ]
                     ]
                ]
 
 
 viewWeek : { week : List { workout : List Movement } } -> Element Msg
 viewWeek { week } =
-    html div [ bulma.tile ] <| List.map viewWorkout week
+    el [ bulma.tile ] <| List.map viewWorkout week
 
 
 viewWorkout : { workout : List Movement } -> Element Msg
 viewWorkout { workout } =
-    html div
+    el
         [ bulma.tile, is.parent ]
-        [ html div
+        [ el
             [ bulma.notification, bulma.tile, is.child, is.light ]
             (List.map viewMovement workout)
         ]
@@ -277,17 +274,17 @@ viewWorkout { workout } =
 viewMovement : Movement -> Element Msg
 viewMovement movement =
     concat
-        [ html div
+        [ el
             [ bulma.columns ]
-            [ html div
+            [ el
                 [ bulma.column ]
-                [ html h2 [ bulma.subtitle ] [ string movement.name ]
-                , html div
+                [ h2 [ bulma.subtitle ] [ text movement.name ]
+                , el
                     [ bulma.level ]
-                    [ html div
+                    [ el
                         [ bulma.levelItem ]
                         [ viewSetsReps movement.sets movement.reps ]
-                    , html div [ bulma.levelItem ] [ viewLoad movement.load ]
+                    , el [ bulma.levelItem ] [ viewLoad movement.load ]
                     ]
                 ]
             ]
@@ -297,11 +294,11 @@ viewMovement movement =
 viewSetsReps : Int -> Int -> Element msg
 viewSetsReps sets reps =
     concat
-        [ html span [ has.textWeightBold ] [ string <| toString sets ]
+        [ el [ has.textWeightBold ] [ text <| toString sets ]
         , nbsp
-        , string "×"
+        , text "×"
         , nbsp
-        , html span [ has.textWeightBold ] [ string <| toString reps ]
+        , el [ has.textWeightBold ] [ text <| toString reps ]
         ]
 
 
@@ -310,9 +307,9 @@ viewLoad load =
     let
         toElement n unit =
             concat
-                [ html span [ has.textWeightBold ] [ string <| toString n ]
+                [ el [ has.textWeightBold ] [ text <| toString n ]
                 , nbsp
-                , string <| pluralize n unit
+                , text <| pluralize n unit
                 ]
     in
     case load of
