@@ -120,32 +120,31 @@ editMovementsAt index f =
 
 
 fixSteps : List Step -> List Step
-fixSteps steps =
-    case steps of
-        -- collapse any empty movements
-        (Movements []) :: (Interval _) :: rest ->
-            fixSteps rest
+fixSteps =
+    let
+        collapse steps =
+            case steps of
+                -- alternate movements
+                ((Movements _) as a) :: ((Interval _) as b) :: (((Movements _) :: _) as rest) ->
+                    a :: b :: collapse rest
 
-        ((Movements _) as first) :: (Interval _) :: (Movements []) :: rest ->
-            first :: fixSteps rest
+                -- end with movements
+                (Movements _) :: [] ->
+                    steps
 
-        -- ensure alternates with movements on each end
-        ((Movements _) as first) :: ((Interval _) as second) :: rest ->
-            first :: second :: fixSteps rest
+                -- skip trailing intervals
+                ((Movements _) as a) :: (Interval _) :: rest ->
+                    collapse (a :: rest)
 
-        -- insert a new interval if one is missing
-        ((Movements _) as first) :: ((Movements _) as second) :: rest ->
-            first :: newInterval :: second :: fixSteps rest
+                -- skip leading intervals
+                _ :: rest ->
+                    collapse rest
 
-        -- skip any extra intervals
-        (Interval _) :: rest ->
-            fixSteps rest
-
-        ((Movements _) as final) :: [] ->
-            [ final ]
-
-        [] ->
-            []
+                -- ensure at least one movement
+                [] ->
+                    [ newMovements ]
+    in
+    List.filter ((/=) (Movements [])) >> collapse
 
 
 mapAt : Int -> (a -> b) -> (a -> b) -> List a -> List b
@@ -183,7 +182,9 @@ viewHeader { name } =
                 [ bulma.levelLeft ]
                 [ html div
                     [ bulma.levelItem ]
-                    [ html input [ bulma.input, is.large, value name ] []
+                    [ html input
+                        [ bulma.input, is.large, value name ]
+                        []
                     ]
                 ]
             , html div
@@ -292,7 +293,12 @@ viewMovementName name =
         [ html div
             [ bulma.control ]
             [ html input
-                [ bulma.input, is.medium, type_ "text", value name ]
+                [ bulma.input
+                , is.medium
+                , type_ "text"
+                , placeholder "Movement name"
+                , value name
+                ]
                 []
             ]
         ]
