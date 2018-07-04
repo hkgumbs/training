@@ -1,5 +1,6 @@
 module Exercise.Page exposing (Model, Msg, init, update, view)
 
+import Exercise.Steps as Steps
 import Global
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -12,18 +13,13 @@ import Ui exposing (..)
 
 type alias Model =
     { exercise : Exercise
-    , steps : List Step
-    , hover : Maybe Reference
+    , steps : Steps.Steps Movement
+    , hover : Maybe Steps.Reference
     }
 
 
 type alias Exercise =
     { name : String }
-
-
-type Step
-    = Movements (List Movement)
-    | Interval Int
 
 
 type alias Movement =
@@ -34,15 +30,11 @@ type alias Movement =
     }
 
 
-type alias Reference =
-    { step : Int, movement : Int }
-
-
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
     Task.map3 Model
         (pg context (getExercise id))
-        (Task.succeed [ newMovements ])
+        (Task.succeed (Steps.empty { name = "", sets = 10, reps = 1, load = "" }))
         (Task.succeed Nothing)
 
 
@@ -68,8 +60,8 @@ getExercise id =
 type Msg
     = NoOp
     | AddStep
-    | SetHover (Maybe Reference)
-    | Delete Reference
+    | SetHover (Maybe Steps.Reference)
+    | Delete Steps.Reference
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -79,81 +71,13 @@ update context msg model =
             ( model, Cmd.none )
 
         AddStep ->
-            ( { model | steps = model.steps ++ [ newInterval, newMovements ] }, Cmd.none )
+            ( { model | steps = Steps.addStep model.steps }, Cmd.none )
 
         SetHover ref ->
             ( { model | hover = ref }, Cmd.none )
 
         Delete ref ->
-            ( { model | steps = fixSteps <| removeMovement ref model.steps }, Cmd.none )
-
-
-newInterval : Step
-newInterval =
-    Interval 2
-
-
-newMovements : Step
-newMovements =
-    Movements [ { name = "", reps = 10, sets = 1, load = "" } ]
-
-
-removeMovement : Reference -> List Step -> List Step
-removeMovement { step, movement } =
-    editMovementsAt step <|
-        \movements ->
-            mapAt movement Just (\_ -> Nothing) movements
-                |> List.filterMap identity
-
-
-editMovementsAt : Int -> (List Movement -> List Movement) -> List Step -> List Step
-editMovementsAt index f =
-    mapAt index identity <|
-        \step ->
-            case step of
-                Interval _ ->
-                    step
-
-                Movements movements ->
-                    Movements <| f movements
-
-
-fixSteps : List Step -> List Step
-fixSteps =
-    let
-        collapse steps =
-            case steps of
-                -- alternate movements
-                ((Movements _) as a) :: ((Interval _) as b) :: (((Movements _) :: _) as rest) ->
-                    a :: b :: collapse rest
-
-                -- end with movements
-                (Movements _) :: [] ->
-                    steps
-
-                -- skip trailing intervals
-                ((Movements _) as a) :: (Interval _) :: rest ->
-                    collapse (a :: rest)
-
-                -- skip leading intervals
-                _ :: rest ->
-                    collapse rest
-
-                -- ensure at least one movement
-                [] ->
-                    [ newMovements ]
-    in
-    List.filter ((/=) (Movements [])) >> collapse
-
-
-mapAt : Int -> (a -> b) -> (a -> b) -> List a -> List b
-mapAt index default ifMatch =
-    List.indexedMap <|
-        \i x ->
-            if i == index then
-                ifMatch x
-            else
-                default x
+            ( { model | steps = Steps.remove ref model.steps }, Cmd.none )
 
 
 view : Model -> Element Msg
@@ -163,10 +87,7 @@ view model =
         [ el
             [ bulma.column ]
             [ viewHeader model.exercise
-            , concat <|
-                List.indexedMap
-                    (viewStep model.hover (List.length model.steps))
-                    model.steps
+            , viewSteps model.hover model.steps
             , viewFooter
             ]
         ]
@@ -199,18 +120,16 @@ viewHeader { name } =
         ]
 
 
-viewStep : Maybe Reference -> Int -> Int -> Step -> Element Msg
-viewStep hover total index step =
-    case step of
-        Movements movements ->
-            List.indexedMap
-                (viewMovement hover (total == index + 1) index)
-                movements
-                |> List.intersperse viewOr
-                |> el [ bulma.level ]
-
-        Interval weeks ->
-            viewInterval weeks
+viewSteps : Maybe Steps.Reference -> Steps.Steps Movement -> Element Msg
+viewSteps hover =
+    Steps.view
+        { interval = viewInterval
+        , movements =
+            List.map (viewMovement hover)
+                >> List.intersperse viewOr
+                >> el [ bulma.level ]
+        }
+        >> concat
 
 
 viewInterval : Int -> Element msg
@@ -233,18 +152,14 @@ viewOr =
         [ button [ bulma.button, is.static ] [ text "OR" ] ]
 
 
-viewMovement : Maybe Reference -> Bool -> Int -> Int -> Movement -> Element Msg
-viewMovement hover atEnd step index movement =
-    let
-        here =
-            { step = step, movement = index }
-    in
+viewMovement : Maybe Steps.Reference -> ( Steps.Context, Movement ) -> Element Msg
+viewMovement hover ( context, movement ) =
     el
         [ bulma.levelItem ]
         [ el
             [ bulma.box
             , onMouseLeave (SetHover Nothing)
-            , onMouseEnter (SetHover <| Just here)
+            , onMouseEnter (SetHover <| Just context.reference)
             ]
             [ el
                 [ bulma.media ]
@@ -256,9 +171,9 @@ viewMovement hover atEnd step index movement =
                     ]
                 , el
                     [ bulma.mediaRight
-                    , is.invisible |> when (hover /= Just here)
+                    , is.invisible |> when (hover /= Just context.reference)
                     ]
-                    [ viewMovementActions atEnd here ]
+                    [ viewMovementActions context ]
                 ]
             ]
         ]
@@ -311,8 +226,8 @@ viewMovementDetails sets reps load =
         ]
 
 
-viewMovementActions : Bool -> Reference -> Element Msg
-viewMovementActions atEnd here =
+viewMovementActions : Steps.Context -> Element Msg
+viewMovementActions context =
     let
         break =
             concat [ br, br ]
@@ -320,17 +235,17 @@ viewMovementActions atEnd here =
     concat <|
         List.intersperse break
             [ button
-                [ bulma.button, is.light, disabled <| here.step == 0 ]
+                [ bulma.button, is.light, disabled context.firstStep ]
                 [ icon "level-up-alt" ]
             , button
                 [ bulma.button
                 , is.danger
                 , is.inverted
-                , onClick (Delete here)
+                , onClick (Delete context.reference)
                 ]
                 [ icon "trash" ]
             , button
-                [ bulma.button, is.light, disabled atEnd ]
+                [ bulma.button, is.light, disabled context.lastStep ]
                 [ icon "level-down-alt" ]
             ]
 
@@ -341,10 +256,7 @@ viewFooter =
         [ hr
         , el
             [ bulma.level ]
-            [ el
-                [ bulma.levelItem ]
-                [ el [ bulma.buttons ] [ viewStepButton ] ]
-            ]
+            [ el [ bulma.levelItem ] [ el [ bulma.buttons ] [ viewStepButton ] ] ]
         ]
 
 
