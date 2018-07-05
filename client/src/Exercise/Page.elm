@@ -77,10 +77,9 @@ newMovement =
 
 
 type Msg
-    = NoOp
-    | AddStep
+    = AddStep
     | SetHover (Maybe Steps.Reference)
-    | Delete Steps.Reference
+    | Duplicate Steps.Reference
     | EditMovement Steps.Reference Change
     | EditInterval Steps.Reference String
 
@@ -95,28 +94,20 @@ type Change
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
 update context msg model =
     case msg of
-        NoOp ->
-            ( model, Cmd.none )
-
-        SetHover ref ->
-            ( { model | hover = ref }, Cmd.none )
-
         AddStep ->
             pure { model | steps = Steps.addStep model.steps }
 
-        Delete ref ->
-            pure { model | steps = Steps.remove ref model.steps }
+        SetHover ref ->
+            pure { model | hover = ref }
+
+        Duplicate ref ->
+            pure { model | steps = Steps.duplicate ref model.steps }
 
         EditMovement ref change ->
             pure { model | steps = Steps.editMovement (apply change) ref model.steps }
 
         EditInterval ref new ->
             pure { model | steps = Steps.editInterval (\_ -> Field.int new) ref model.steps }
-
-
-pure : Model -> ( Model, Cmd Msg )
-pure model =
-    ( model, Cmd.none )
 
 
 apply : Change -> Movement -> Movement
@@ -133,6 +124,11 @@ apply change movement =
 
         Load new ->
             { movement | load = Field.string new }
+
+
+pure : Model -> ( Model, Cmd Msg )
+pure model =
+    ( model, Cmd.none )
 
 
 view : Model -> Element Msg
@@ -181,7 +177,7 @@ viewSteps hover =
         { interval = viewInterval
         , movements =
             List.map (viewMovement hover)
-                >> List.intersperse viewOr
+                >> List.append [ viewRowActions ]
                 >> el [ bulma.level ]
         }
         >> concat
@@ -203,11 +199,9 @@ viewInterval ref weeks =
         ]
 
 
-viewOr : Element msg
-viewOr =
-    el
-        [ bulma.levelItem ]
-        [ button [ bulma.button, is.static ] [ text "OR" ] ]
+viewRowActions : Element Msg
+viewRowActions =
+    button [ bulma.delete, is.danger ] []
 
 
 viewMovement : Maybe Steps.Reference -> ( Steps.Context, Movement ) -> Element Msg
@@ -303,11 +297,10 @@ viewMovementActions context =
                 [ icon "level-up-alt" ]
             , button
                 [ bulma.button
-                , is.danger
-                , is.inverted
-                , onClick (Delete context.reference)
+                , is.light
+                , onClick (Duplicate context.reference)
                 ]
-                [ icon "trash" ]
+                [ icon "clone" ]
             , button
                 [ bulma.button, is.light, disabled context.lastStep ]
                 [ icon "level-down-alt" ]

@@ -4,10 +4,10 @@ module Exercise.Steps
         , Reference
         , State
         , addStep
+        , duplicate
         , editInterval
         , editMovement
         , empty
-        , remove
         , view
         )
 
@@ -83,16 +83,13 @@ editInterval f (Ref { step, movement }) (State defaultInterval defaultMovement s
         |> State defaultInterval defaultMovement
 
 
-remove : Reference -> State interval movement -> State interval movement
-remove (Ref { step, movement }) (State defaultInterval defaultMovement steps) =
+duplicate : Reference -> State interval movement -> State interval movement
+duplicate (Ref { step, movement }) (State defaultInterval defaultMovement steps) =
     editAt step
         identity
-        (\movements ->
-            mapAt movement Just (\_ -> Nothing) movements
-                |> List.filterMap identity
-        )
+        (List.concat << mapAt movement List.singleton (\x -> [ x, x ]))
         steps
-        |> fix defaultInterval defaultMovement
+        |> State defaultInterval defaultMovement
 
 
 editAt : Int -> (i -> i) -> (List m -> List m) -> List (Step i m) -> List (Step i m)
@@ -105,36 +102,6 @@ editAt index intervalMap movementsMap =
 
                 Movements movements ->
                     Movements <| movementsMap movements
-
-
-fix : interval -> movement -> List (Step interval movement) -> State interval movement
-fix defaultInterval defaultMovement original =
-    let
-        collapse steps =
-            case steps of
-                -- alternate movements
-                ((Movements _) as a) :: ((Interval _) as b) :: (((Movements _) :: _) as rest) ->
-                    a :: b :: collapse rest
-
-                -- end with movements
-                (Movements _) :: [] ->
-                    steps
-
-                -- skip trailing intervals
-                ((Movements _) as a) :: (Interval _) :: rest ->
-                    collapse (a :: rest)
-
-                -- skip leading intervals
-                _ :: rest ->
-                    collapse rest
-
-                -- ensure at least one movement
-                [] ->
-                    [ Movements [ defaultMovement ] ]
-    in
-    List.filter ((/=) (Movements [])) original
-        |> collapse
-        |> State defaultInterval defaultMovement
 
 
 mapAt : Int -> (a -> b) -> (a -> b) -> List a -> List b
