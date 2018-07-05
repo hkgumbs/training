@@ -31,9 +31,11 @@ import Html.Attributes exposing (class)
 
 
 {-| Thin wrapper around Html to keep wiht the following goals:
-1. Allow arbitrary composition with `concat`
-2. Limit choice to semantic elements
-3. Mirror the Bulma API for learnability
+
+1.  Allow arbitrary composition with `concat`
+2.  Limit choice to semantic elements
+3.  Mirror the Bulma API for learnability
+
 -}
 type Element msg
     = Text String
@@ -184,6 +186,7 @@ is :
     -- COLOR
     , primary : Attribute msg
     , info : Attribute msg
+    , warning : Attribute msg
     , danger : Attribute msg
     , light : Attribute msg
     , white : Attribute msg
@@ -221,6 +224,7 @@ is =
     , twelve = class "is-12"
     , primary = class "is-primary"
     , info = class "is-info"
+    , warning = class "is-warning"
     , danger = class "is-danger"
     , light = class "is-light"
     , white = class "is-white"

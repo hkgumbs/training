@@ -1,5 +1,6 @@
 module Exercise.Page exposing (Model, Msg, init, update, view)
 
+import Exercise.Field as Field exposing (Field)
 import Exercise.Steps as Steps
 import Global
 import Html.Attributes exposing (..)
@@ -13,7 +14,7 @@ import Ui exposing (..)
 
 type alias Model =
     { exercise : Exercise
-    , steps : Steps.Steps Movement
+    , steps : Steps.State Interval Movement
     , hover : Maybe Steps.Reference
     }
 
@@ -22,11 +23,15 @@ type alias Exercise =
     { name : String }
 
 
+type alias Interval =
+    Field Int
+
+
 type alias Movement =
-    { name : String
-    , sets : Int
-    , reps : Int
-    , load : String
+    { name : Field String
+    , sets : Field Int
+    , reps : Field Int
+    , load : Field String
     }
 
 
@@ -34,7 +39,7 @@ init : Global.Context -> String -> Task Global.Error Model
 init context id =
     Task.map3 Model
         (pg context (getExercise id))
-        (Task.succeed (Steps.empty { name = "", sets = 10, reps = 1, load = "" }))
+        (Task.succeed (Steps.empty newInterval newMovement))
         (Task.succeed Nothing)
 
 
@@ -57,11 +62,34 @@ getExercise id =
         }
 
 
+newInterval : Interval
+newInterval =
+    Field.int "2"
+
+
+newMovement : Movement
+newMovement =
+    { name = Field.nonEmptyString ""
+    , sets = Field.int ""
+    , reps = Field.int ""
+    , load = Field.string ""
+    }
+
+
 type Msg
     = NoOp
     | AddStep
     | SetHover (Maybe Steps.Reference)
     | Delete Steps.Reference
+    | EditMovement Steps.Reference Change
+    | EditInterval Steps.Reference String
+
+
+type Change
+    = Name String
+    | Sets String
+    | Reps String
+    | Load String
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
@@ -70,14 +98,41 @@ update context msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        AddStep ->
-            ( { model | steps = Steps.addStep model.steps }, Cmd.none )
-
         SetHover ref ->
             ( { model | hover = ref }, Cmd.none )
 
+        AddStep ->
+            pure { model | steps = Steps.addStep model.steps }
+
         Delete ref ->
-            ( { model | steps = Steps.remove ref model.steps }, Cmd.none )
+            pure { model | steps = Steps.remove ref model.steps }
+
+        EditMovement ref change ->
+            pure { model | steps = Steps.editMovement (apply change) ref model.steps }
+
+        EditInterval ref new ->
+            pure { model | steps = Steps.editInterval (\_ -> Field.int new) ref model.steps }
+
+
+pure : Model -> ( Model, Cmd Msg )
+pure model =
+    ( model, Cmd.none )
+
+
+apply : Change -> Movement -> Movement
+apply change movement =
+    case change of
+        Name new ->
+            { movement | name = Field.nonEmptyString new }
+
+        Sets new ->
+            { movement | sets = Field.int new }
+
+        Reps new ->
+            { movement | reps = Field.int new }
+
+        Load new ->
+            { movement | load = Field.string new }
 
 
 view : Model -> Element Msg
@@ -120,7 +175,7 @@ viewHeader { name } =
         ]
 
 
-viewSteps : Maybe Steps.Reference -> Steps.Steps Movement -> Element Msg
+viewSteps : Maybe Steps.Reference -> Steps.State Interval Movement -> Element Msg
 viewSteps hover =
     Steps.view
         { interval = viewInterval
@@ -132,15 +187,18 @@ viewSteps hover =
         >> concat
 
 
-viewInterval : Int -> Element msg
-viewInterval weeks =
+viewInterval : Steps.Reference -> Field Int -> Element Msg
+viewInterval ref weeks =
     el
         [ bulma.notification, has.backgroundLight ]
         [ el
             [ bulma.level ]
             [ el [ bulma.levelItem ] <|
                 List.intersperse nbsp
-                    [ text "progress in ", numberInput "" weeks, text " weeks" ]
+                    [ text "progress in "
+                    , numberInput (EditInterval ref) "" weeks
+                    , text " weeks"
+                    ]
             ]
         ]
 
@@ -166,8 +224,8 @@ viewMovement hover ( context, movement ) =
                 [ el
                     [ bulma.mediaContent ]
                     [ viewMovementHeader
-                    , viewMovementName movement.name
-                    , viewMovementDetails movement.sets movement.reps movement.load
+                    , viewMovementName context movement.name
+                    , viewMovementDetails context movement
                     ]
                 , el
                     [ bulma.mediaRight
@@ -197,8 +255,8 @@ viewMovementHeader =
         ]
 
 
-viewMovementName : String -> Element msg
-viewMovementName name =
+viewMovementName : Steps.Context -> Field String -> Element Msg
+viewMovementName { reference } name =
     el
         [ bulma.field ]
         [ el
@@ -208,21 +266,27 @@ viewMovementName name =
                 , is.medium
                 , type_ "text"
                 , placeholder "Movement name"
-                , value name
+                , value (Field.view name)
+                , is.warning |> when (Field.isInvalid name)
+                , onInput <| EditMovement reference << Name
                 ]
             ]
         ]
 
 
-viewMovementDetails : Int -> Int -> String -> Element msg
-viewMovementDetails sets reps load =
+viewMovementDetails : Steps.Context -> Movement -> Element Msg
+viewMovementDetails { reference } { sets, reps, load } =
+    let
+        change f =
+            EditMovement reference << f
+    in
     el
         [ bulma.level ]
-        [ el [ bulma.levelItem ] [ numberInput "sets" sets ]
+        [ el [ bulma.levelItem ] [ numberInput (change Sets) "sets" sets ]
         , el [ bulma.levelItem ] [ nbsp, text "×", nbsp ]
-        , el [ bulma.levelItem ] [ numberInput "reps" reps ]
+        , el [ bulma.levelItem ] [ numberInput (change Reps) "reps" reps ]
         , el [ bulma.levelItem ] [ nbsp, text "@", nbsp ]
-        , el [ bulma.levelItem ] [ loadInput load ]
+        , el [ bulma.levelItem ] [ loadInput load reference ]
         ]
 
 
@@ -267,29 +331,33 @@ viewStepButton =
         [ icon "tasks", el [] [ text "Add progression" ] ]
 
 
-numberInput : String -> Int -> Element msg
-numberInput name n =
+numberInput : (String -> msg) -> String -> Field Int -> Element msg
+numberInput toMsg name n =
     el
         [ bulma.field ]
         [ input
             [ bulma.input
             , type_ "number"
             , placeholder name
-            , value (toString n)
+            , value (Field.view n)
+            , Html.Attributes.min "0"
             , style [ ( "width", "4rem" ) ]
+            , is.warning |> when (Field.isInvalid n)
+            , onInput toMsg
             ]
         ]
 
 
-loadInput : String -> Element msg
-loadInput content =
+loadInput : Field String -> Steps.Reference -> Element Msg
+loadInput content ref =
     el
         [ bulma.field ]
         [ input
             [ bulma.input
             , type_ "text"
             , placeholder "load(s)"
-            , value content
+            , value (Field.view content)
             , style [ ( "width", "10rem" ) ]
+            , onInput <| EditMovement ref << Load
             ]
         ]

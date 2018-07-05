@@ -1,13 +1,24 @@
-module Exercise.Steps exposing (Context, Reference, Steps, addStep, empty, remove, view)
+module Exercise.Steps
+    exposing
+        ( Context
+        , Reference
+        , State
+        , addStep
+        , editInterval
+        , editMovement
+        , empty
+        , remove
+        , view
+        )
 
 
-type Steps a
-    = Steps a (List (Step a))
+type State interval movement
+    = State interval movement (List (Step interval movement))
 
 
-type Step a
-    = Interval Int
-    | Movements (List a)
+type Step interval movement
+    = Interval interval
+    | Movements (List movement)
 
 
 type alias Context =
@@ -22,10 +33,10 @@ type Reference
 
 
 view :
-    { interval : Int -> html, movements : List ( Context, a ) -> html }
-    -> Steps a
+    { interval : Reference -> i -> html, movements : List ( Context, m ) -> html }
+    -> State i m
     -> List html
-view config (Steps _ steps) =
+view config (State _ _ steps) =
     let
         withContext step index movement =
             ( { firstStep = step == 0
@@ -39,7 +50,7 @@ view config (Steps _ steps) =
         (\index step ->
             case step of
                 Interval n ->
-                    config.interval n
+                    config.interval (Ref { step = index, movement = -1 }) n
 
                 Movements movements ->
                     config.movements <|
@@ -48,41 +59,56 @@ view config (Steps _ steps) =
         steps
 
 
-empty : a -> Steps a
-empty default =
-    Steps default <| [ Movements [ default ] ]
+empty : interval -> movement -> State interval movement
+empty defaultInterval defaultMovement =
+    State defaultInterval defaultMovement <| [ Movements [ defaultMovement ] ]
 
 
-addStep : Steps a -> Steps a
-addStep (Steps default steps) =
-    Steps default <| steps ++ [ Interval 2, Movements [ default ] ]
+addStep : State interval movement -> State interval movement
+addStep (State defaultInterval defaultMovement steps) =
+    State defaultInterval defaultMovement <|
+        steps
+            ++ [ Interval defaultInterval, Movements [ defaultMovement ] ]
 
 
-remove : Reference -> Steps a -> Steps a
-remove (Ref { step, movement }) (Steps default steps) =
-    editMovementsAt step
+editMovement : (movement -> movement) -> Reference -> State interval movement -> State interval movement
+editMovement f (Ref { step, movement }) (State defaultInterval defaultMovement steps) =
+    editAt step identity (mapAt movement identity f) steps
+        |> State defaultInterval defaultMovement
+
+
+editInterval : (interval -> interval) -> Reference -> State interval movement -> State interval movement
+editInterval f (Ref { step, movement }) (State defaultInterval defaultMovement steps) =
+    editAt step f identity steps
+        |> State defaultInterval defaultMovement
+
+
+remove : Reference -> State interval movement -> State interval movement
+remove (Ref { step, movement }) (State defaultInterval defaultMovement steps) =
+    editAt step
+        identity
         (\movements ->
             mapAt movement Just (\_ -> Nothing) movements
                 |> List.filterMap identity
         )
         steps
-        |> fix default
+        |> fix defaultInterval defaultMovement
 
 
-editMovementsAt : Int -> (List a -> List a) -> List (Step a) -> List (Step a)
-editMovementsAt index f =
+editAt : Int -> (i -> i) -> (List m -> List m) -> List (Step i m) -> List (Step i m)
+editAt index intervalMap movementsMap =
     mapAt index identity <|
         \step ->
             case step of
-                Interval _ ->
-                    step
+                Interval n ->
+                    Interval <| intervalMap n
 
                 Movements movements ->
-                    Movements <| f movements
+                    Movements <| movementsMap movements
 
 
-fix : a -> List (Step a) -> Steps a
-fix default original =
+fix : interval -> movement -> List (Step interval movement) -> State interval movement
+fix defaultInterval defaultMovement original =
     let
         collapse steps =
             case steps of
@@ -104,9 +130,11 @@ fix default original =
 
                 -- ensure at least one movement
                 [] ->
-                    [ Movements [ default ] ]
+                    [ Movements [ defaultMovement ] ]
     in
-    Steps default <| collapse <| List.filter ((/=) (Movements [])) original
+    List.filter ((/=) (Movements [])) original
+        |> collapse
+        |> State defaultInterval defaultMovement
 
 
 mapAt : Int -> (a -> b) -> (a -> b) -> List a -> List b

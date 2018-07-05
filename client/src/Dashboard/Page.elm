@@ -41,6 +41,6 @@ update context msg model =
 view : Model -> Element Msg
 view model =
     if model.authenticated then
-        button [ onClick Logout ] [ text "LOG OUT" ]
+        button [ bulma.button, onClick Logout ] [ text "LOG OUT" ]
     else
-        button [ onClick Login ] [ text "LOG IN" ]
+        button [ bulma.button, onClick Login ] [ text "LOG IN" ]
