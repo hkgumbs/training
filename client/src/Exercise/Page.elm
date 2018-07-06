@@ -1,4 +1,4 @@
-module Exercise.Page exposing (Model, Msg, init, update, view)
+module Exercise.Page exposing (Model, Msg, init, subscriptions, update, view)
 
 import Exercise.Field as Field exposing (Field)
 import Exercise.Steps as Steps
@@ -7,6 +7,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Json.Decode as D
+import Mouse
 import PostgRest as PG
 import Resources
 import Task exposing (Task)
@@ -18,6 +19,7 @@ type alias Model =
     , steps : Steps.State Interval Movement
     , hover : Maybe Steps.Reference
     , drag : Maybe Steps.Reference
+    , cursor : Mouse.Position
     }
 
 
@@ -39,11 +41,17 @@ type alias Movement =
 
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.map4 Model
-        (pg context (getExercise id))
-        (Task.succeed (Steps.empty newInterval newMovement))
-        (Task.succeed Nothing)
-        (Task.succeed Nothing)
+    Task.succeed Model
+        |> andMap (pg context (getExercise id))
+        |> andMap (Task.succeed (Steps.empty newInterval newMovement))
+        |> andMap (Task.succeed Nothing)
+        |> andMap (Task.succeed Nothing)
+        |> andMap (Task.succeed <| Mouse.Position 0 0)
+
+
+andMap : Task x a -> Task x (a -> b) -> Task x b
+andMap =
+    Task.map2 (|>)
 
 
 {-| TODO: move to Global
@@ -81,8 +89,9 @@ newMovement =
 
 type Msg
     = AddStep
+    | MouseMove Mouse.Position
     | SetHover (Maybe Steps.Reference)
-    | SetDrag (Maybe Steps.Reference)
+    | Drag (Maybe Steps.Reference)
     | Duplicate Steps.Reference
     | Delete Steps.Reference
     | EditMovement Steps.Reference Change
@@ -102,11 +111,14 @@ update context msg model =
         AddStep ->
             pure { model | steps = Steps.addStep model.steps }
 
+        MouseMove position ->
+            pure { model | cursor = position }
+
         SetHover ref ->
             pure { model | hover = ref }
 
-        SetDrag ref ->
-            pure { model | drag = ref }
+        Drag ref ->
+            pure <| { model | drag = ref }
 
         Duplicate ref ->
             pure { model | steps = Steps.duplicate ref model.steps }
@@ -119,6 +131,16 @@ update context msg model =
 
         EditInterval ref new ->
             pure { model | steps = Steps.editInterval (\_ -> Field.int new) ref model.steps }
+
+
+drag : { a | drag : Bool } -> { a | drag : Bool }
+drag record =
+    { record | drag = True }
+
+
+drop : { a | drag : Bool } -> { a | drag : Bool }
+drop record =
+    { record | drag = False }
 
 
 apply : Change -> Movement -> Movement
@@ -142,17 +164,51 @@ pure model =
     ( model, Cmd.none )
 
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ Mouse.moves MouseMove
+        , Mouse.ups (\_ -> Drag Nothing)
+        ]
+
+
 view : Model -> Element Msg
 view model =
     el
-        [ bulma.columns ]
-        [ el
-            [ bulma.column ]
-            [ viewHeader model.exercise
-            , viewSteps model.hover model.steps
-            , viewFooter
-            ]
+        [ bulma.section
+        , cursorGrabbing |> when (model.drag /= Nothing)
         ]
+        [ el
+            [ bulma.container ]
+            [ el
+                [ bulma.columns ]
+                [ el
+                    [ bulma.column ]
+                    [ viewHeader model.exercise, viewSteps model, viewFooter ]
+                ]
+            ]
+        , viewGhost model.drag model.cursor
+        ]
+
+
+viewGhost : Maybe Steps.Reference -> Mouse.Position -> Element Msg
+viewGhost ref cursor =
+    case ref of
+        Nothing ->
+            empty
+
+        Just _ ->
+            el
+                [ has.backgroundPrimary
+                , style
+                    [ ( "top", px cursor.y )
+                    , ( "left", px cursor.x )
+                    , ( "width", "5rem" )
+                    , ( "height", "5rem" )
+                    , ( "position", "absolute" )
+                    ]
+                ]
+                []
 
 
 viewHeader : Exercise -> Element Msg
@@ -182,13 +238,14 @@ viewHeader { name } =
         ]
 
 
-viewSteps : Maybe Steps.Reference -> Steps.State Interval Movement -> Element Msg
-viewSteps hover =
-    Steps.view
-        { interval = viewInterval
-        , movements = List.map (viewMovement hover) >> el [ bulma.level ]
-        }
-        >> concat
+viewSteps : Model -> Element Msg
+viewSteps model =
+    concat <|
+        Steps.view
+            { interval = viewInterval
+            , movements = List.map (viewMovement model) >> el [ bulma.level ]
+            }
+            model.steps
 
 
 viewInterval : Steps.Reference -> Field Int -> Element Msg
@@ -207,16 +264,16 @@ viewInterval ref weeks =
         ]
 
 
-viewMovement : Maybe Steps.Reference -> ( Steps.Context, Movement ) -> Element Msg
-viewMovement hover ( context, movement ) =
+viewMovement : Model -> ( Steps.Context, Movement ) -> Element Msg
+viewMovement { hover, drag, cursor } ( context, movement ) =
     el
-        [ bulma.levelItem
-        , cursorGrab
-        , draggable "true"
-        , onDragStart <| SetDrag (Just context.reference)
-        ]
+        [ bulma.levelItem ]
         [ el
             [ bulma.box
+            , cursorGrab
+            , draggable "true"
+            , faded |> when (drag == Just context.reference)
+            , onDragStart <| Drag (Just context.reference)
             , onMouseLeave <| SetHover Nothing
             , onMouseEnter <| SetHover (Just context.reference)
             ]
@@ -230,7 +287,9 @@ viewMovement hover ( context, movement ) =
                     ]
                 , el
                     [ bulma.mediaRight
-                    , is.invisible |> when (hover /= Just context.reference)
+                    , when
+                        (hover /= Just context.reference || drag /= Nothing)
+                        is.invisible
                     ]
                     [ viewMovementActions context ]
                 ]
@@ -374,3 +433,23 @@ cursorGrab =
         [ ( "cursor", "grab" )
         , ( "cursor", "-webkit-grab" )
         ]
+
+
+cursorGrabbing : Attribute msg
+cursorGrabbing =
+    style
+        [ ( "cursor", "grabbing" )
+        , ( "cursor", "-webkit-grabbing" )
+        ]
+
+
+faded : Attribute msg
+faded =
+    style
+        [ ( "opacity", "0.4" )
+        ]
+
+
+px : Int -> String
+px n =
+    toString n ++ "px"

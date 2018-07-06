@@ -145,7 +145,7 @@ subscriptions model =
                 Sub.none
 
             Exercise page ->
-                Sub.none
+                Sub.map ExerciseMsg <| Exercise.Page.subscriptions page
 
 
 view : Model -> Html.Html Msg

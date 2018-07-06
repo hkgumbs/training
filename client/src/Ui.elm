@@ -49,14 +49,7 @@ type alias Attribute msg =
 
 toHtml : (a -> msg) -> List (Element a) -> Html.Html msg
 toHtml f children =
-    Html.map f <| Html.div [] <| List.map topLevel children
-
-
-topLevel : Element msg -> Html.Html msg
-topLevel element =
-    Html.section
-        [ class "section" ]
-        [ Html.div [ class "container" ] (nested element) ]
+    Html.map f <| Html.div [] <| List.concatMap nested children
 
 
 nested : Element msg -> List (Html msg)
@@ -296,6 +289,8 @@ has =
 
 bulma :
     { title : Attribute msg
+    , container : Attribute msg
+    , section : Attribute msg
     , subtitle : Attribute msg
     , box : Attribute msg
     , notification : Attribute msg
@@ -327,6 +322,8 @@ bulma :
     }
 bulma =
     { title = class "title"
+    , container = class "container"
+    , section = class "section"
     , subtitle = class "subtitle"
     , box = class "box"
     , notification = class "notification"
