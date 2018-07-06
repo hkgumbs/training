@@ -53,7 +53,7 @@ previous =
 
 view :
     { interval : Reference -> i -> html
-    , movements : Reference -> List ( Context, m ) -> html
+    , movements : List ( Context, m ) -> html
     }
     -> State i m
     -> List html
@@ -69,16 +69,12 @@ view config (State _ _ steps) =
     in
     List.indexedMap
         (\index step ->
-            let
-                row =
-                    Ref { step = index, movement = -1 }
-            in
             case step of
                 Interval n ->
-                    config.interval row n
+                    config.interval (Ref { step = index, movement = -1 }) n
 
                 Movements movements ->
-                    config.movements row <|
+                    config.movements <|
                         List.indexedMap (withContext index) movements
         )
         steps
@@ -115,7 +111,8 @@ duplicate (Ref { step, movement }) =
 
 delete : Reference -> State interval movement -> State interval movement
 delete (Ref { step, movement }) =
-    editAt step identity (\_ -> []) >> fix
+    editAt step identity (mapAt movement List.singleton (\_ -> []) >> List.concat)
+        >> fix
 
 
 move : Diff -> movement -> Reference -> State interval movement -> State interval movement
