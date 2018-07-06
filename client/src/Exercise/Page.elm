@@ -80,6 +80,8 @@ type Msg
     = AddStep
     | SetHover (Maybe Steps.Reference)
     | Duplicate Steps.Reference
+    | Delete Steps.Reference
+    | Move Steps.Diff Movement Steps.Reference
     | EditMovement Steps.Reference Change
     | EditInterval Steps.Reference String
 
@@ -102,6 +104,12 @@ update context msg model =
 
         Duplicate ref ->
             pure { model | steps = Steps.duplicate ref model.steps }
+
+        Delete ref ->
+            pure { model | steps = Steps.delete ref model.steps }
+
+        Move by movement ref ->
+            pure { model | steps = Steps.move by movement ref model.steps }
 
         EditMovement ref change ->
             pure { model | steps = Steps.editMovement (apply change) ref model.steps }
@@ -176,9 +184,10 @@ viewSteps hover =
     Steps.view
         { interval = viewInterval
         , movements =
-            List.map (viewMovement hover)
-                >> List.append [ viewRowActions ]
-                >> el [ bulma.level ]
+            \row ->
+                List.map (viewMovement hover)
+                    >> List.append [ viewRowActions row ]
+                    >> el [ bulma.level ]
         }
         >> concat
 
@@ -199,9 +208,11 @@ viewInterval ref weeks =
         ]
 
 
-viewRowActions : Element Msg
-viewRowActions =
-    button [ bulma.delete, is.danger ] []
+viewRowActions : Steps.Reference -> Element Msg
+viewRowActions ref =
+    button
+        [ bulma.button, is.danger, is.inverted, onClick <| Delete ref ]
+        [ icon "trash" ]
 
 
 viewMovement : Maybe Steps.Reference -> ( Steps.Context, Movement ) -> Element Msg
@@ -225,7 +236,7 @@ viewMovement hover ( context, movement ) =
                     [ bulma.mediaRight
                     , is.invisible |> when (hover /= Just context.reference)
                     ]
-                    [ viewMovementActions context ]
+                    [ viewMovementActions movement context ]
                 ]
             ]
         ]
@@ -284,8 +295,8 @@ viewMovementDetails { reference } { sets, reps, load } =
         ]
 
 
-viewMovementActions : Steps.Context -> Element Msg
-viewMovementActions context =
+viewMovementActions : Movement -> Steps.Context -> Element Msg
+viewMovementActions movement context =
     let
         break =
             concat [ br, br ]
@@ -293,7 +304,11 @@ viewMovementActions context =
     concat <|
         List.intersperse break
             [ button
-                [ bulma.button, is.light, disabled context.firstStep ]
+                [ bulma.button
+                , is.light
+                , disabled context.firstStep
+                , onClick (Move Steps.previous movement context.reference)
+                ]
                 [ icon "level-up-alt" ]
             , button
                 [ bulma.button
@@ -302,7 +317,11 @@ viewMovementActions context =
                 ]
                 [ icon "clone" ]
             , button
-                [ bulma.button, is.light, disabled context.lastStep ]
+                [ bulma.button
+                , is.light
+                , disabled context.lastStep
+                , onClick (Move Steps.next movement context.reference)
+                ]
                 [ icon "level-down-alt" ]
             ]
 
