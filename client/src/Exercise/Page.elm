@@ -249,12 +249,9 @@ view model =
         [ bulma.section ]
         [ el
             [ bulma.container ]
-            [ el
-                [ bulma.columns ]
-                [ el
-                    [ bulma.column ]
-                    [ viewHeader model.exercise, viewSteps model, viewFooter ]
-                ]
+            [ viewHeader model.exercise
+            , viewSteps model
+            , viewFooter
             ]
         , viewGhost model.drag
         ]
@@ -322,7 +319,18 @@ viewSteps model =
     concat <|
         Steps.view
             { interval = viewInterval
-            , movements = List.map (viewMovement model) >> el [ bulma.level ]
+            , movements =
+                List.map (viewMovement model)
+                    >> List.intersperse viewOr
+                    >> el
+                        [ style
+                            [ ( "display", "flex" )
+                            , ( "flex-wrap", "nowrap" )
+                            , ( "overflow-x", "auto" )
+                            , ( "align-items", "center" )
+                            , ( "padding", "1rem" )
+                            ]
+                        ]
             }
             model.steps
 
@@ -346,7 +354,11 @@ viewInterval ref weeks =
 viewMovement : Model -> ( Steps.Context, Movement ) -> Element Msg
 viewMovement { hover, drag } ( context, movement ) =
     el
-        [ bulma.levelItem ]
+        [ style
+            [ ( "flex", "0 0 auto" )
+            , ( "margin", "0 auto" )
+            ]
+        ]
         [ el
             (animateSubject context drag
                 ++ [ bulma.box
@@ -375,6 +387,13 @@ viewMovement { hover, drag } ( context, movement ) =
                 ]
             ]
         ]
+
+
+viewOr : Element Msg
+viewOr =
+    el
+        [ is.italic, is.uppercase, style [ ( "padding", "0 1rem" ) ] ]
+        [ text "or" ]
 
 
 viewMovementHeader : Element Msg

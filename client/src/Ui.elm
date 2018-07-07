@@ -213,6 +213,12 @@ is :
     , parent : Attribute msg
     , child : Attribute msg
     , vertical : Attribute msg
+
+    -- TYPOGRAPHY
+    , italic : Attribute msg
+    , lowercase : Attribute msg
+    , uppercase : Attribute msg
+    , capitalized : Attribute msg
     }
 is =
     { one = class "is-1"
@@ -247,6 +253,10 @@ is =
     , parent = class "is-parent"
     , child = class "is-child"
     , vertical = class "is-vertical"
+    , italic = class "is-italic"
+    , uppercase = class "is-uppercase"
+    , lowercase = class "is-lowercase"
+    , capitalized = class "is-capitalized"
     }
 
 
