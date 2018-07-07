@@ -20,6 +20,7 @@ module Ui
         , nbsp
         , option
         , select
+        , stylesheet
         , text
         , toHtml
         , when
@@ -144,6 +145,15 @@ input attrs =
     El "input" attrs []
 
 
+stylesheet : String -> Element msg
+stylesheet styles =
+    El "style"
+        [ Html.Attributes.attribute "type" "text/css"
+        , Html.Attributes.attribute "scoped" ""
+        ]
+        [ Text styles ]
+
+
 icon : String -> Element msg
 icon name =
     El "span" [ bulma.icon ] [ El "i" [ class <| "fas fa-" ++ name ] [] ]
@@ -195,6 +205,8 @@ is :
     , static : Attribute msg
     , outlined : Attribute msg
     , inverted : Attribute msg
+    , hovered : Attribute msg
+    , rounded : Attribute msg
 
     -- TILES
     , ancestor : Attribute msg
@@ -229,6 +241,8 @@ is =
     , static = class "is-static"
     , outlined = class "is-outlined"
     , inverted = class "is-inverted"
+    , hovered = class "is-hovered"
+    , rounded = class "is-rounded"
     , ancestor = class "is-ancestor"
     , parent = class "is-parent"
     , child = class "is-child"

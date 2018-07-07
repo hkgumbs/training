@@ -1,5 +1,7 @@
 module Exercise.Page exposing (Model, Msg, init, subscriptions, update, view)
 
+import Animation
+import Animation.Messenger as AM
 import Exercise.Field as Field exposing (Field)
 import Exercise.Steps as Steps
 import Global
@@ -18,8 +20,7 @@ type alias Model =
     { exercise : Exercise
     , steps : Steps.State Interval Movement
     , hover : Maybe Steps.Reference
-    , drag : Maybe Steps.Reference
-    , cursor : Mouse.Position
+    , drag : DragState Steps.Reference
     }
 
 
@@ -39,19 +40,26 @@ type alias Movement =
     }
 
 
+type alias DragState a =
+    { subject : Maybe a
+    , position : Mouse.Position
+    , original : AM.State (DragMsg a)
+    , cursor : AM.State (DragMsg a)
+    }
+
+
 init : Global.Context -> String -> Task Global.Error Model
 init context id =
-    Task.succeed Model
-        |> andMap (pg context (getExercise id))
-        |> andMap (Task.succeed (Steps.empty newInterval newMovement))
-        |> andMap (Task.succeed Nothing)
-        |> andMap (Task.succeed Nothing)
-        |> andMap (Task.succeed <| Mouse.Position 0 0)
-
-
-andMap : Task x a -> Task x (a -> b) -> Task x b
-andMap =
-    Task.map2 (|>)
+    let
+        fromExercise exercise =
+            { exercise = exercise
+            , steps = Steps.empty newInterval newMovement
+            , hover = Nothing
+            , drag = initialDrag
+            }
+    in
+    Task.map fromExercise
+        (pg context (getExercise id))
 
 
 {-| TODO: move to Global
@@ -87,11 +95,19 @@ newMovement =
     }
 
 
+initialDrag : DragState a
+initialDrag =
+    { subject = Nothing
+    , position = Mouse.Position 0 0
+    , original = Animation.style opaque
+    , cursor = Animation.style gone
+    }
+
+
 type Msg
-    = AddStep
-    | MouseMove Mouse.Position
+    = DragMsg (DragMsg Steps.Reference)
+    | AddStep
     | SetHover (Maybe Steps.Reference)
-    | Drag (Maybe Steps.Reference)
     | Duplicate Steps.Reference
     | Delete Steps.Reference
     | EditMovement Steps.Reference Change
@@ -105,20 +121,27 @@ type Change
     | Load String
 
 
+type DragMsg a
+    = Start a Mouse.Position
+    | Stop
+    | Reset
+    | MouseMove Mouse.Position
+    | Animate Animation.Msg
+
+
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
 update context msg model =
     case msg of
+        DragMsg dragMsg ->
+            updateDrag dragMsg model.drag
+                |> Tuple.mapFirst (\drag -> { model | drag = drag })
+                |> Tuple.mapSecond (Cmd.map DragMsg)
+
         AddStep ->
             pure { model | steps = Steps.addStep model.steps }
 
-        MouseMove position ->
-            pure { model | cursor = position }
-
         SetHover ref ->
             pure { model | hover = ref }
-
-        Drag ref ->
-            pure <| { model | drag = ref }
 
         Duplicate ref ->
             pure { model | steps = Steps.duplicate ref model.steps }
@@ -131,16 +154,6 @@ update context msg model =
 
         EditInterval ref new ->
             pure { model | steps = Steps.editInterval (\_ -> Field.int new) ref model.steps }
-
-
-drag : { a | drag : Bool } -> { a | drag : Bool }
-drag record =
-    { record | drag = True }
-
-
-drop : { a | drag : Bool } -> { a | drag : Bool }
-drop record =
-    { record | drag = False }
 
 
 apply : Change -> Movement -> Movement
@@ -159,6 +172,59 @@ apply change movement =
             { movement | load = Field.string new }
 
 
+updateDrag : DragMsg a -> DragState a -> ( DragState a, Cmd (DragMsg a) )
+updateDrag msg state =
+    case msg of
+        Start subject position ->
+            ( { state
+                | subject = Just subject
+                , position = position
+                , cursor = Animation.interrupt [ Animation.to opaque ] state.cursor
+                , original = Animation.interrupt [ Animation.to faded ] state.original
+              }
+            , Cmd.none
+            )
+
+        Stop ->
+            ( { state
+                | cursor = Animation.interrupt [ Animation.to gone ] state.cursor
+                , original = Animation.interrupt [ Animation.to opaque, AM.send Reset ] state.original
+              }
+            , Cmd.none
+            )
+
+        Reset ->
+            ( { state | subject = Nothing }, Cmd.none )
+
+        MouseMove position ->
+            ( { state | position = position }, Cmd.none )
+
+        Animate tick ->
+            let
+                ( cursor, a ) =
+                    AM.update tick state.cursor
+
+                ( original, b ) =
+                    AM.update tick state.original
+            in
+            ( { state | original = original, cursor = cursor }, Cmd.batch [ a, b ] )
+
+
+opaque : List Animation.Property
+opaque =
+    [ Animation.opacity 1.0, Animation.scale 1, Animation.grayscale 0 ]
+
+
+faded : List Animation.Property
+faded =
+    [ Animation.opacity 0.6, Animation.scale 0.8, Animation.grayscale 100 ]
+
+
+gone : List Animation.Property
+gone =
+    [ Animation.opacity 0.0, Animation.scale 0.6 ]
+
+
 pure : Model -> ( Model, Cmd Msg )
 pure model =
     ( model, Cmd.none )
@@ -166,18 +232,21 @@ pure model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Mouse.moves MouseMove
-        , Mouse.ups (\_ -> Drag Nothing)
-        ]
+    Sub.map DragMsg <|
+        Sub.batch
+            [ Mouse.ups (\_ -> Stop)
+            , Animation.subscription Animate [ model.drag.original, model.drag.cursor ]
+            , if model.drag.subject == Nothing then
+                Sub.none
+              else
+                Mouse.moves MouseMove
+            ]
 
 
 view : Model -> Element Msg
 view model =
     el
-        [ bulma.section
-        , cursorGrabbing |> when (model.drag /= Nothing)
-        ]
+        [ bulma.section ]
         [ el
             [ bulma.container ]
             [ el
@@ -187,28 +256,38 @@ view model =
                     [ viewHeader model.exercise, viewSteps model, viewFooter ]
                 ]
             ]
-        , viewGhost model.drag model.cursor
+        , viewGhost model.drag
         ]
 
 
-viewGhost : Maybe Steps.Reference -> Mouse.Position -> Element Msg
-viewGhost ref cursor =
-    case ref of
-        Nothing ->
-            empty
-
-        Just _ ->
-            el
-                [ has.backgroundPrimary
-                , style
-                    [ ( "top", px cursor.y )
-                    , ( "left", px cursor.x )
-                    , ( "width", "5rem" )
-                    , ( "height", "5rem" )
-                    , ( "position", "absolute" )
-                    ]
-                ]
-                []
+viewGhost : DragState Steps.Reference -> Element Msg
+viewGhost { subject, cursor, position } =
+    if subject == Nothing then
+        empty
+    else
+        concat
+            [ stylesheet """
+                * {
+                  cursor: grabbing !important;
+                  cursor: -moz-grabbing !important;
+                  cursor: -webkit-grabbing !important;
+                }
+              """
+            , button
+                (Animation.render cursor
+                    ++ [ bulma.button
+                       , is.info
+                       , is.hovered
+                       , is.large
+                       , style
+                            [ ( "top", px position.y )
+                            , ( "left", px position.x )
+                            , ( "position", "absolute" )
+                            ]
+                       ]
+                )
+                [ icon "dumbbell" ]
+            ]
 
 
 viewHeader : Exercise -> Element Msg
@@ -265,18 +344,19 @@ viewInterval ref weeks =
 
 
 viewMovement : Model -> ( Steps.Context, Movement ) -> Element Msg
-viewMovement { hover, drag, cursor } ( context, movement ) =
+viewMovement { hover, drag } ( context, movement ) =
     el
         [ bulma.levelItem ]
         [ el
-            [ bulma.box
-            , cursorGrab
-            , draggable "true"
-            , faded |> when (drag == Just context.reference)
-            , onDragStart <| Drag (Just context.reference)
-            , onMouseLeave <| SetHover Nothing
-            , onMouseEnter <| SetHover (Just context.reference)
-            ]
+            (animateSubject context drag
+                ++ [ bulma.box
+                   , cursorGrab
+                   , draggable "true"
+                   , onDragStart <| DragMsg << Start context.reference
+                   , onMouseLeave <| SetHover Nothing
+                   , onMouseEnter <| SetHover (Just context.reference)
+                   ]
+            )
             [ el
                 [ bulma.media ]
                 [ el
@@ -288,7 +368,7 @@ viewMovement { hover, drag, cursor } ( context, movement ) =
                 , el
                     [ bulma.mediaRight
                     , when
-                        (hover /= Just context.reference || drag /= Nothing)
+                        (hover /= Just context.reference || drag.subject /= Nothing)
                         is.invisible
                     ]
                     [ viewMovementActions context ]
@@ -420,33 +500,30 @@ loadInput content ref =
         ]
 
 
-onDragStart : msg -> Attribute msg
-onDragStart msg =
+onDragStart : (Mouse.Position -> msg) -> Attribute msg
+onDragStart toMsg =
     onWithOptions "dragstart"
         { preventDefault = True, stopPropagation = True }
-        (D.succeed msg)
+        (D.map2 (\x y -> toMsg (Mouse.Position x y))
+            (D.field "clientX" D.int)
+            (D.field "clientY" D.int)
+        )
+
+
+animateSubject : Steps.Context -> DragState Steps.Reference -> List (Attribute msg)
+animateSubject context drag =
+    if drag.subject == Just context.reference then
+        Animation.render drag.original
+    else
+        []
 
 
 cursorGrab : Attribute msg
 cursorGrab =
     style
         [ ( "cursor", "grab" )
+        , ( "cursor", "-moz-grab" )
         , ( "cursor", "-webkit-grab" )
-        ]
-
-
-cursorGrabbing : Attribute msg
-cursorGrabbing =
-    style
-        [ ( "cursor", "grabbing" )
-        , ( "cursor", "-webkit-grabbing" )
-        ]
-
-
-faded : Attribute msg
-faded =
-    style
-        [ ( "opacity", "0.4" )
         ]
 
 
