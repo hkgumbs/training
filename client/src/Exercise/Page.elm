@@ -217,7 +217,7 @@ opaque =
 
 faded : List Animation.Property
 faded =
-    [ Animation.opacity 0.6, Animation.scale 0.8, Animation.grayscale 100 ]
+    [ Animation.opacity 0.8, Animation.scale 0.8, Animation.grayscale 100 ]
 
 
 gone : List Animation.Property
@@ -263,24 +263,14 @@ viewGhost { subject, cursor, position } =
         empty
     else
         concat
-            [ stylesheet """
-                * {
-                  cursor: grabbing !important;
-                  cursor: -moz-grabbing !important;
-                  cursor: -webkit-grabbing !important;
-                }
-              """
-            , button
+            [ button
                 (Animation.render cursor
                     ++ [ bulma.button
                        , is.info
                        , is.hovered
                        , is.large
-                       , style
-                            [ ( "top", px position.y )
-                            , ( "left", px position.x )
-                            , ( "position", "absolute" )
-                            ]
+                       , cursorGrabbing
+                       , followCursor position
                        ]
                 )
                 [ icon "dumbbell" ]
@@ -322,15 +312,7 @@ viewSteps model =
             , movements =
                 List.map (viewMovement model)
                     >> List.intersperse viewOr
-                    >> el
-                        [ style
-                            [ ( "display", "flex" )
-                            , ( "flex-wrap", "nowrap" )
-                            , ( "overflow-x", "auto" )
-                            , ( "align-items", "center" )
-                            , ( "padding", "1rem" )
-                            ]
-                        ]
+                    >> el [ scrollableRow ]
             }
             model.steps
 
@@ -354,11 +336,7 @@ viewInterval ref weeks =
 viewMovement : Model -> ( Steps.Context, Movement ) -> Element Msg
 viewMovement { hover, drag } ( context, movement ) =
     el
-        [ style
-            [ ( "flex", "0 0 auto" )
-            , ( "margin", "0 auto" )
-            ]
-        ]
+        [ scrollableRowElement ]
         [ el
             (animateSubject context drag
                 ++ [ bulma.box
@@ -391,9 +369,7 @@ viewMovement { hover, drag } ( context, movement ) =
 
 viewOr : Element Msg
 viewOr =
-    el
-        [ is.italic, is.uppercase, style [ ( "padding", "0 1rem" ) ] ]
-        [ text "or" ]
+    el [ is.italic, is.uppercase ] [ text "or" ]
 
 
 viewMovementHeader : Element Msg
@@ -456,7 +432,7 @@ viewMovementActions context =
             [ bulma.button
             , is.white
             , onClick (Duplicate context.reference)
-            , style [ ( "margin-bottom", "1rem" ) ]
+            , style [ ( "margin-bottom", "1em" ) ]
             ]
             [ icon "clone" ]
         , br
@@ -497,7 +473,7 @@ numberInput toMsg name n =
             , placeholder name
             , value (Field.view n)
             , Html.Attributes.min "0"
-            , style [ ( "width", "4rem" ) ]
+            , style [ ( "width", "4em" ) ]
             , is.warning |> when (Field.isInvalid n)
             , onInput toMsg
             ]
@@ -513,7 +489,7 @@ loadInput content ref =
             , type_ "text"
             , placeholder "load(s)"
             , value (Field.view content)
-            , style [ ( "width", "10rem" ) ]
+            , style [ ( "width", "10em" ) ]
             , onInput <| EditMovement ref << Load
             ]
         ]
@@ -537,6 +513,26 @@ animateSubject context drag =
         []
 
 
+scrollableRow : Attribute msg
+scrollableRow =
+    style
+        [ ( "display", "flex" )
+        , ( "flex-wrap", "nowrap" )
+        , ( "overflow-x", "auto" )
+        , ( "align-items", "center" )
+        , ( "padding", "1em 0" )
+        ]
+
+
+scrollableRowElement : Attribute msg
+scrollableRowElement =
+    style
+        [ ( "flex", "0 0 auto" )
+        , ( "margin", "0 auto" )
+        , ( "padding", "0 1em" )
+        ]
+
+
 cursorGrab : Attribute msg
 cursorGrab =
     style
@@ -546,6 +542,20 @@ cursorGrab =
         ]
 
 
-px : Int -> String
-px n =
-    toString n ++ "px"
+cursorGrabbing : Attribute msg
+cursorGrabbing =
+    style
+        [ ( "cursor", "grabbing" )
+        , ( "cursor", "-moz-grabbing" )
+        , ( "cursor", "-webkit-grabbing" )
+        ]
+
+
+followCursor : Mouse.Position -> Attribute msg
+followCursor { x, y } =
+    style
+        [ ( "position", "absolute" )
+        , ( "top", "calc(" ++ toString y ++ "px - 1em)" )
+        , ( "left", "calc(" ++ toString x ++ "px - 1.10em)" )
+        , ( "z-index", "9" )
+        ]
