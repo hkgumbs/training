@@ -22,18 +22,16 @@ def exercise(worksheet)
   {
     name: worksheet.title,
     features: [], # TODO
-    movements: [
-      worksheet.rows(1).map do |row|
-        {
-          name: row[0],
-          sets: row[1].to_i,
-          reps: row[2].to_i,
-          load: row[3],
-          rest: row[4].to_i,
-          progression_rate: row[5].to_i,
-        }
-      end
-    ],
+    movements: worksheet.rows(1).map do |row|
+      {
+        name: row[0],
+        sets: row[1].to_i,
+        reps: row[2].to_i,
+        load: row[3],
+        rest: row[4].to_i,
+        progression_rate: row[5].to_i,
+      }
+    end,
   }
 end
 

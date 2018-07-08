@@ -7,7 +7,6 @@ import Html.Attributes exposing (placeholder)
 import Html.Events exposing (..)
 import Http
 import Json.Decode as D
-import PostgRest as PG
 import Resources
 import Task exposing (Task)
 import TestData
@@ -30,14 +29,7 @@ type alias Client =
 type alias Exercise =
     { name : String
     , features : List String
-    , progressions : List Progression
-    }
-
-
-type alias Progression =
-    { rate : Int
-    , from : Movement
-    , to : Movement
+    , movements : List Movement
     }
 
 
@@ -45,8 +37,9 @@ type alias Movement =
     { name : String
     , sets : Int
     , reps : Int
-    , load : Maybe Resources.Load
+    , load : String
     , rest : Int
+    , progressionRate : Int
     }
 
 
@@ -55,16 +48,7 @@ init context id =
     Task.map3 Model
         getWeeksToProject
         (getClient context)
-        (pg context getExercises)
-
-
-{-| TODO: move to Global
--}
-pg : Global.Context -> PG.Request a -> Task Global.Error a
-pg { auth, dbapi } =
-    PG.toHttpRequest { timeout = Nothing, token = auth, url = dbapi }
-        >> Http.toTask
-        >> Task.mapError Global.httpError
+        getExercises
 
 
 getWeeksToProject : Task x Int
@@ -88,30 +72,29 @@ getClient context =
             Debug.crash {- TODO -} ""
 
 
-getExercises : PG.Request (List Exercise)
+getExercises : Task Global.Error (List Exercise)
 getExercises =
-    let
-        movement =
-            PG.map5 Movement
-                (PG.field .name)
-                (PG.field .sets)
-                (PG.field .reps)
-                (PG.field .load)
-                (PG.field .rest)
-    in
-    PG.readAll Resources.exercise
-        (PG.map3 Exercise
-            (PG.field .name)
-            (PG.embedAll .features Resources.exerciseFeature (PG.field .value))
-            (PG.embedAll .progressions
-                Resources.progression
-                (PG.map3 Progression
-                    (PG.field .rate)
-                    (PG.embedOne .fromMovement Resources.movement movement)
-                    (PG.embedOne .toMovement Resources.movement movement)
+    Http.get "/api/exercises"
+        (D.list
+            (D.map3 Exercise
+                (D.field "name" D.string)
+                (D.field "features" (D.list D.string))
+                (D.field "movements"
+                    (D.list
+                        (D.map6 Movement
+                            (D.field "name" D.string)
+                            (D.field "sets" D.int)
+                            (D.field "reps" D.int)
+                            (D.field "load" D.string)
+                            (D.field "rest" D.int)
+                            (D.field "progression_rate" D.int)
+                        )
+                    )
                 )
             )
         )
+        |> Http.toTask
+        |> Task.mapError Global.httpError
 
 
 type Msg
@@ -150,14 +133,24 @@ remove a =
 view : Model -> Element Msg
 view model =
     el
-        [ bulma.tile, is.ancestor ]
+        [ bulma.container ]
         [ el
-            [ bulma.tile, is.vertical ]
-            [ el [ bulma.tile ] <|
-                [ viewSidebar model.client model.exercises
-                , viewSchedule model.weeksToProject model.client model.exercises
+            [ bulma.section ]
+            [ el
+                [ bulma.tile, is.ancestor ]
+                [ el
+                    [ bulma.tile, is.vertical ]
+                    [ el [ bulma.tile ] [ viewContent model ] ]
                 ]
             ]
+        ]
+
+
+viewContent : Model -> Element Msg
+viewContent model =
+    concat
+        [ viewSidebar model.client model.exercises
+        , viewSchedule model.weeksToProject model.client model.exercises
         ]
 
 
@@ -284,7 +277,9 @@ viewMovement movement =
                     [ el
                         [ bulma.levelItem ]
                         [ viewSetsReps movement.sets movement.reps ]
-                    , el [ bulma.levelItem ] [ viewLoad movement.load ]
+                    , el
+                        [ bulma.levelItem ]
+                        [ el [ has.textWeightBold ] [ text movement.load ] ]
                     ]
                 ]
             ]
@@ -300,27 +295,6 @@ viewSetsReps sets reps =
         , nbsp
         , el [ has.textWeightBold ] [ text <| toString reps ]
         ]
-
-
-viewLoad : Maybe Resources.Load -> Element msg
-viewLoad load =
-    let
-        toElement n unit =
-            concat
-                [ el [ has.textWeightBold ] [ text <| toString n ]
-                , nbsp
-                , text <| pluralize n unit
-                ]
-    in
-    case load of
-        Nothing ->
-            empty
-
-        Just (Resources.Kgs n) ->
-            toElement n "kg"
-
-        Just (Resources.Lbs n) ->
-            toElement n "lb"
 
 
 scheduleAttrs : List Date.Day -> Date.Day -> List (Attribute Msg)
