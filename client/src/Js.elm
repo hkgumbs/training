@@ -1,4 +1,4 @@
-port module Js exposing (getSheet, login, logout)
+port module Js exposing (login, logout, pickSheet)
 
 import Json.Encode as E
 
@@ -13,9 +13,9 @@ logout =
     outgoing <| tag "LOGOUT" E.null
 
 
-getSheet : String -> Cmd msg
-getSheet id =
-    outgoing <| tag "GET-SHEET" <| E.string id
+pickSheet : String -> Cmd msg
+pickSheet id =
+    outgoing <| tag "PICK-SHEET" <| E.string id
 
 
 tag : String -> E.Value -> E.Value

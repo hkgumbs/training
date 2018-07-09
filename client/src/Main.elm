@@ -72,7 +72,6 @@ exercises =
 
 type Msg
     = Login
-    | SetSheetSearch String
     | SheetSearch
     | LoadMore
 
@@ -83,11 +82,8 @@ update msg ({ settings } as model) =
         Login ->
             ( model, Js.login )
 
-        SetSheetSearch new ->
-            pure { model | sheetSearch = new }
-
         SheetSearch ->
-            ( model, Js.getSheet model.sheetSearch )
+            ( model, Js.pickSheet model.sheetSearch )
 
         LoadMore ->
             pure { model | settings = { settings | weeksToProject = 6 + settings.weeksToProject } }
@@ -123,25 +119,18 @@ viewStep1 =
         [ bulma.container ]
         [ h1
             [ bulma.title ]
-            [ text "1. Enter a Sheet ID" ]
+            [ text "1. Import your exercises" ]
         , el
-            [ bulma.field, has.addons ]
+            [ bulma.buttons ]
             [ el
                 [ bulma.control ]
-                [ input [ bulma.input, is.medium, onInput SetSheetSearch ] ]
+                [ button [ bulma.button, onClick Login ] [ text "Login" ] ]
             , el
                 [ bulma.control ]
                 [ button
-                    [ bulma.button
-                    , is.primary
-                    , is.medium
-                    , onClick SheetSearch
-                    ]
-                    [ text "Next" ]
+                    [ bulma.button, is.primary, onClick SheetSearch ]
+                    [ text "Pick" ]
                 ]
-            , el
-                [ bulma.control ]
-                [ button [ bulma.button, onClick Login ] [ text "Login" ] ]
             ]
         ]
 
