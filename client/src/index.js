@@ -41,39 +41,4 @@ app.ports.outgoing.subscribe(function(msg) {
   }
 });
 
-
-
-// CONFIGURATION
-
-
-function development() {
-  const tokenRedirect = "/#id_token="
-    + "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-    + ".eyJyb2xlIjoid2ViIn0"
-    + ".OV5FRcM6dZTHQR5oF0hcbmjBZdN2j-1QD-TSQ0ErD04";
-  return {
-    dbapi: 'http://localhost:3001',
-    login: () => window.location = tokenRedirect,
-    logout: () => window.location.reload(),
-  };
-}
-
-function production() {
-  const initialUri = window.location.href.split('#')[0];
-  const clientID = '2B20LQM-ze-J2iaVnvL6LsQ9zZ2I7oT7';
-  const auth = new auth0.WebAuth({
-    domain: 'progress-app.auth0.com',
-    responseType: 'id_token',
-    scope: 'openid',
-    clientID: clientID,
-    redirectUri: initialUri,
-  });
-
-  return {
-    dbapi: 'https://progress-api.herokuapp.com',
-    login: () => auth.authorize(),
-    logout: () => auth.logout({ clientID: clientID, returnTo: initialUri }),
-  };
-}
-
 registerServiceWorker();
