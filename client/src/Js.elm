@@ -1,30 +1,29 @@
-port module Js exposing (login, logout, saveToken)
+port module Js exposing (getSheet, login, logout)
 
-import Global
-import Json.Encode exposing (Value)
-
-
-saveToken : String -> Cmd msg
-saveToken =
-    outgoing << tag "SAVE-TOKEN" << Global.encodeToken
+import Json.Encode as E
 
 
 login : Cmd msg
 login =
-    outgoing <| tag "LOGIN" Json.Encode.null
+    outgoing <| tag "LOGIN" E.null
 
 
 logout : Cmd msg
 logout =
-    outgoing <| tag "LOGOUT" Json.Encode.null
+    outgoing <| tag "LOGOUT" E.null
 
 
-tag : String -> Value -> Value
+getSheet : String -> Cmd msg
+getSheet id =
+    outgoing <| tag "GET-SHEET" <| E.string id
+
+
+tag : String -> E.Value -> E.Value
 tag name data =
-    Json.Encode.object
-        [ ( "tag", Json.Encode.string name )
+    E.object
+        [ ( "tag", E.string name )
         , ( "data", data )
         ]
 
 
-port outgoing : Value -> Cmd msg
+port outgoing : E.Value -> Cmd msg

@@ -194,6 +194,7 @@ is :
     , light : Attribute msg
     , white : Attribute msg
     , invisible : Attribute msg
+    , bold : Attribute msg
 
     -- FORMS
     , expanded : Attribute msg
@@ -207,6 +208,10 @@ is :
     , inverted : Attribute msg
     , hovered : Attribute msg
     , rounded : Attribute msg
+
+    -- LAYOUT
+    , fullwidth : Attribute msg
+    , fullheight : Attribute msg
 
     -- TILES
     , ancestor : Attribute msg
@@ -240,6 +245,7 @@ is =
     , light = class "is-light"
     , white = class "is-white"
     , invisible = class "is-invisible"
+    , bold = class "is-bold"
     , expanded = class "is-expanded"
     , large = class "is-large"
     , medium = class "is-medium"
@@ -249,6 +255,8 @@ is =
     , inverted = class "is-inverted"
     , hovered = class "is-hovered"
     , rounded = class "is-rounded"
+    , fullwidth = class "is-fullwidth"
+    , fullheight = class "is-fullheight"
     , ancestor = class "is-ancestor"
     , parent = class "is-parent"
     , child = class "is-child"
@@ -313,9 +321,11 @@ has =
 
 bulma :
     { title : Attribute msg
+    , subtitle : Attribute msg
+    , hero : Attribute msg
+    , heroBody : Attribute msg
     , container : Attribute msg
     , section : Attribute msg
-    , subtitle : Attribute msg
     , box : Attribute msg
     , notification : Attribute msg
     , tag : Attribute msg
@@ -346,9 +356,11 @@ bulma :
     }
 bulma =
     { title = class "title"
+    , subtitle = class "subtitle"
+    , hero = class "hero"
+    , heroBody = class "hero-body"
     , container = class "container"
     , section = class "section"
-    , subtitle = class "subtitle"
     , box = class "box"
     , notification = class "notification"
     , tag = class "tag"

@@ -1,4 +1,4 @@
-module Plan.Days exposing (decoder, toString)
+module Days exposing (decoder, toString)
 
 import Date
 import Json.Decode as D

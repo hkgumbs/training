@@ -1,160 +1,358 @@
-module Main exposing (..)
+module Main exposing (Model, Msg, init, update, view)
 
-import Global
+import Date
+import Days
 import Html
+import Html.Attributes exposing (placeholder)
+import Html.Events exposing (..)
 import Js
-import Json.Decode
-import Navigation
-import Plan.Page
-import Route
-import Settings.Page
-import Task
-import Ui
+import Json.Decode as D
+import Ui exposing (..)
 
 
 type alias Model =
-    { page : Page
-    , context : Global.Context
+    { settings : Settings
+    , sheetSearch : String
+    , exercises : Maybe (List Exercise)
     }
 
 
-type Page
-    = Blank
-    | Settings Settings.Page.Model
-    | Plan Plan.Page.Model
+type alias Settings =
+    { client : String
+    , weeksToProject : Int
+    }
 
 
-init : Json.Decode.Value -> Navigation.Location -> ( Model, Cmd Msg )
-init value location =
-    case Json.Decode.decodeValue Global.context value of
-        Err _ ->
-            Debug.crash {- TODO -} "BAD CONTEXT"
+type alias Exercise =
+    { name : String
+    , features : List String
+    , movements : List Movement
+    }
 
-        Ok context ->
-            goTo (Route.fromLocation location)
-                { page = Blank
-                , context = context
-                }
+
+type alias Movement =
+    { name : String
+    , sets : Int
+    , reps : Int
+    , load : String
+    , rest : Int
+    , progressionRate : Int
+    }
+
+
+init : ( Model, Cmd Msg )
+init =
+    pure
+        { settings = { client = "Client", weeksToProject = 6 }
+        , sheetSearch = ""
+        , exercises = Nothing
+        }
+
+
+exercises : D.Decoder (List Exercise)
+exercises =
+    D.list
+        (D.map3 Exercise
+            (D.field "name" D.string)
+            (D.field "features" (D.list D.string))
+            (D.field "movements"
+                (D.list
+                    (D.map6 Movement
+                        (D.field "name" D.string)
+                        (D.field "sets" D.int)
+                        (D.field "reps" D.int)
+                        (D.field "load" D.string)
+                        (D.field "rest" D.int)
+                        (D.field "progression_rate" D.int)
+                    )
+                )
+            )
+        )
 
 
 type Msg
-    = SetRoute (Maybe Route.Route)
-    | Error Global.Error
-    | Logout
-    | Loaded Page
-    | PageMsg PageMsg
-
-
-type PageMsg
-    = SettingsMsg Settings.Page.Msg
-    | PlanMsg Plan.Page.Msg
+    = Login
+    | SetSheetSearch String
+    | SheetSearch
+    | LoadMore
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ settings } as model) =
     case msg of
-        SetRoute destination ->
-            goTo destination model
-
-        Error Global.RequiresAuth ->
+        Login ->
             ( model, Js.login )
 
-        Error Global.AppError ->
-            Debug.crash {- TODO -} ""
+        SetSheetSearch new ->
+            pure { model | sheetSearch = new }
 
-        Logout ->
-            ( model, Js.logout )
+        SheetSearch ->
+            ( model, Js.getSheet model.sheetSearch )
 
-        Loaded page ->
-            ( { model | page = page }, Cmd.none )
-
-        PageMsg pageMsg ->
-            updatePage model.context pageMsg model.page
-                |> mapBoth (\page -> { model | page = page }) (Cmd.map PageMsg)
+        LoadMore ->
+            pure { model | settings = { settings | weeksToProject = 6 + settings.weeksToProject } }
 
 
-updatePage : Global.Context -> PageMsg -> Page -> ( Page, Cmd PageMsg )
-updatePage context msg page =
-    case ( msg, page ) of
-        ( SettingsMsg pageMsg, Settings model ) ->
-            Settings.Page.update context pageMsg model
-                |> mapBoth Settings (Cmd.map SettingsMsg)
-
-        ( PlanMsg pageMsg, Plan model ) ->
-            Plan.Page.update context pageMsg model
-                |> mapBoth Plan (Cmd.map PlanMsg)
-
-        _ ->
-            ( page, Cmd.none )
+pure : Model -> ( Model, Cmd Msg )
+pure model =
+    ( model, Cmd.none )
 
 
-mapBoth : (a -> c) -> (b -> d) -> ( a, b ) -> ( c, d )
-mapBoth f g =
-    Tuple.mapFirst f >> Tuple.mapSecond g
+remove : a -> List a -> List a
+remove a =
+    List.filter ((/=) a)
 
 
-goTo : Maybe Route.Route -> Model -> ( Model, Cmd Msg )
-goTo destination ({ context } as model) =
-    case destination of
+view : Model -> Element Msg
+view model =
+    case model.exercises of
         Nothing ->
-            ( model, Route.modifyUrl Route.Plan )
+            el
+                [ bulma.hero, is.bold, is.light, is.fullheight ]
+                [ el [ bulma.heroBody ] [ viewStep1 ] ]
 
-        Just Route.Settings ->
-            ( model, Task.attempt (load Settings) <| Settings.Page.init context )
-
-        Just Route.Plan ->
-            ( model, Task.attempt (load Plan) <| Plan.Page.init context )
-
-        Just (Route.TokenRedirect idToken) ->
-            ( { model | context = { context | auth = Just idToken } }
-            , Cmd.batch [ Js.saveToken idToken, Route.modifyUrl Route.Plan ]
-            )
+        Just exercises ->
+            el
+                [ bulma.container ]
+                [ el [ bulma.section ] [ viewStep2 model.settings exercises ] ]
 
 
-load : (a -> Page) -> Result Global.Error a -> Msg
-load page result =
-    case result of
-        Err type_ ->
-            Error type_
-
-        Ok data ->
-            Loaded (page data)
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.map PageMsg <|
-        case model.page of
-            Blank ->
-                Sub.none
-
-            Settings page ->
-                Sub.none
-
-            Plan page ->
-                Sub.none
-
-
-view : Model -> Html.Html Msg
-view { page } =
-    Html.map PageMsg <|
-        case page of
-            Blank ->
-                Html.text ""
-
-            Settings model ->
-                Ui.toHtml SettingsMsg [ Settings.Page.view model ]
-
-            Plan model ->
-                Ui.toHtml PlanMsg [ Plan.Page.view model ]
+viewStep1 : Element Msg
+viewStep1 =
+    el
+        [ bulma.container ]
+        [ h1
+            [ bulma.title ]
+            [ text "1. Enter a Sheet ID" ]
+        , el
+            [ bulma.field, has.addons ]
+            [ el
+                [ bulma.control ]
+                [ input [ bulma.input, is.medium, onInput SetSheetSearch ] ]
+            , el
+                [ bulma.control ]
+                [ button
+                    [ bulma.button
+                    , is.primary
+                    , is.medium
+                    , onClick SheetSearch
+                    ]
+                    [ text "Next" ]
+                ]
+            , el
+                [ bulma.control ]
+                [ button [ bulma.button, onClick Login ] [ text "Login" ] ]
+            ]
+        ]
 
 
-main : Program Json.Decode.Value Model Msg
+viewStep2 : Settings -> List Exercise -> Element Msg
+viewStep2 settings exercises =
+    el
+        [ bulma.tile, is.ancestor ]
+        [ el
+            [ bulma.tile, is.vertical ]
+            [ h1
+                [ bulma.tile, is.child, bulma.title ]
+                [ text "2. Create a plan" ]
+            , el
+                [ bulma.tile ]
+                [ viewSidebar settings exercises
+                , viewSchedule settings exercises
+                ]
+            ]
+        ]
+
+
+viewSidebar : Settings -> List Exercise -> Element Msg
+viewSidebar settings exercises =
+    el
+        [ bulma.tile, is.four ]
+        [ el
+            [ is.parent ]
+            [ el
+                [ bulma.notification, is.white ]
+                [ h1 [ bulma.title ] [ text settings.client ]
+                , label [ bulma.label ] [ text "Schedule" ]
+                , el
+                    [ bulma.field, has.addons ]
+                    [ viewDay [] Date.Mon
+                    , viewDay [] Date.Tue
+                    , viewDay [] Date.Wed
+                    , viewDay [] Date.Thu
+                    , viewDay [] Date.Fri
+                    , viewDay [] Date.Sat
+                    , viewDay [] Date.Sun
+                    ]
+                , hr
+                , el
+                    [ bulma.field ]
+                    [ label [ bulma.label ] [ text "Exercises" ]
+                    , el
+                        [ bulma.control, has.iconsLeft ]
+                        [ icon "search"
+                        , input [ bulma.input, placeholder "Add an exercise..." ]
+                        ]
+                    ]
+                , el
+                    [ bulma.columns ]
+                    [ el [ bulma.column ] <| List.map viewExercise exercises ]
+                ]
+            ]
+        ]
+
+
+viewExercise : Exercise -> Element Msg
+viewExercise exercise =
+    el
+        [ bulma.box ]
+        [ el
+            [ bulma.level ]
+            [ el
+                [ bulma.levelLeft ]
+                [ h2 [ bulma.subtitle ] [ text exercise.name ] ]
+            , el
+                [ bulma.levelRight ]
+                [ button
+                    [ bulma.button
+                    , is.danger
+                    , is.outlined
+                    ]
+                    [ icon "minus-circle" ]
+                ]
+            ]
+        , el [ bulma.tags ] <|
+            List.map
+                (\name -> el [ bulma.tag ] [ text name ])
+                exercise.features
+        ]
+
+
+viewDay : List Date.Day -> Date.Day -> Element Msg
+viewDay schedule day =
+    el
+        [ bulma.control ]
+        [ button
+            [ bulma.button ]
+            [ text <| Days.toString day ]
+        ]
+
+
+viewSchedule : Settings -> List Exercise -> Element Msg
+viewSchedule settings exercises =
+    let
+        projection =
+            generatePlan
+                { exercises = exercises
+                , weeksToProject = settings.weeksToProject
+                , daysPerWeek = {- TODO -} 3
+                }
+    in
+    el [ bulma.tile, is.vertical ] <|
+        List.map viewWeek projection
+            ++ [ el
+                    [ bulma.tile, is.parent ]
+                    [ button
+                        [ bulma.button, bulma.tile, is.child, onClick LoadMore ]
+                        [ text "Load more" ]
+                    ]
+               ]
+
+
+viewWeek : { week : List { workout : List Movement } } -> Element Msg
+viewWeek { week } =
+    el [ bulma.tile ] <| List.map viewWorkout week
+
+
+viewWorkout : { workout : List Movement } -> Element Msg
+viewWorkout { workout } =
+    el
+        [ bulma.tile, is.parent ]
+        [ el
+            [ bulma.notification, bulma.tile, is.child, is.light ]
+            (List.map viewMovement workout)
+        ]
+
+
+viewMovement : Movement -> Element Msg
+viewMovement movement =
+    concat
+        [ el
+            [ bulma.columns ]
+            [ el
+                [ bulma.column ]
+                [ h2 [ bulma.subtitle ] [ text movement.name ]
+                , el
+                    [ bulma.level ]
+                    [ el
+                        [ bulma.levelItem ]
+                        [ viewSetsReps movement.sets movement.reps ]
+                    , el
+                        [ bulma.levelItem ]
+                        [ el [ has.textWeightBold ] [ text movement.load ] ]
+                    ]
+                ]
+            ]
+        ]
+
+
+viewSetsReps : Int -> Int -> Element msg
+viewSetsReps sets reps =
+    concat
+        [ el [ has.textWeightBold ] [ text <| toString sets ]
+        , nbsp
+        , text "×"
+        , nbsp
+        , el [ has.textWeightBold ] [ text <| toString reps ]
+        ]
+
+
+onInt : (Int -> msg) -> Attribute msg
+onInt toMsg =
+    let
+        parseInt str =
+            case String.toInt str of
+                Ok i ->
+                    D.succeed (toMsg i)
+
+                Err reason ->
+                    D.fail reason
+    in
+    on "input" <| D.andThen parseInt targetValue
+
+
+pluralize : Int -> String -> String
+pluralize n singular =
+    if n == 1 then
+        singular
+    else
+        singular ++ "s"
+
+
+
+-- PLAN
+
+
+generatePlan :
+    { exercises : List Exercise
+    , weeksToProject : Int
+    , daysPerWeek : Int
+    }
+    -> List { week : List { workout : List Movement } }
+generatePlan { exercises, weeksToProject, daysPerWeek } =
+    List.repeat weeksToProject
+        { week =
+            List.repeat daysPerWeek
+                { workout = []
+                }
+        }
+
+
+main : Program Never Model Msg
 main =
-    Navigation.programWithFlags
-        (Route.fromLocation >> SetRoute)
-        { view = view
-        , init = init
+    Html.program
+        { init = init
         , update = update
-        , subscriptions = subscriptions
+        , view = \model -> Ui.toHtml identity [ view model ]
+        , subscriptions = \_ -> Sub.none
         }
