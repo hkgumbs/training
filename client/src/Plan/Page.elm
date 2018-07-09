@@ -1,28 +1,26 @@
-module Client.Page exposing (Model, Msg, init, update, view)
+module Plan.Page exposing (Model, Msg, init, update, view)
 
-import Client.Days as Days
 import Date
 import Global
 import Html.Attributes exposing (placeholder)
 import Html.Events exposing (..)
 import Http
 import Json.Decode as D
-import Resources
+import Plan.Days as Days
 import Task exposing (Task)
 import TestData
 import Ui exposing (..)
 
 
 type alias Model =
-    { weeksToProject : Int
-    , client : Client
+    { settings : Settings
     , exercises : List Exercise
     }
 
 
-type alias Client =
-    { name : String
-    , schedule : List Date.Day
+type alias Settings =
+    { client : String
+    , weeksToProject : Int
     }
 
 
@@ -43,33 +41,19 @@ type alias Movement =
     }
 
 
-init : Global.Context -> String -> Task Global.Error Model
-init context id =
-    Task.map3 Model
-        getWeeksToProject
-        (getClient context)
+init : Global.Context -> Task Global.Error Model
+init context =
+    Task.map2 Model
+        getSettings
         getExercises
 
 
-getWeeksToProject : Task x Int
-getWeeksToProject =
-    Task.succeed 6
-
-
-getClient : Global.Context -> Task Global.Error Client
-getClient context =
-    let
-        decoder =
-            D.map2 Client
-                (D.field "name" D.string)
-                (D.field "schedule" Days.decoder)
-    in
-    case D.decodeString decoder TestData.client of
-        Ok client ->
-            Task.succeed client
-
-        Err _ ->
-            Debug.crash {- TODO -} ""
+getSettings : Task x Settings
+getSettings =
+    Task.succeed
+        { client = "Client"
+        , weeksToProject = 6
+        }
 
 
 getExercises : Task Global.Error (List Exercise)
@@ -99,25 +83,17 @@ getExercises =
 
 type Msg
     = NoOp
-    | AddToSchedule Date.Day
-    | RemoveFromSchedule Date.Day
     | LoadMore
 
 
 update : Global.Context -> Msg -> Model -> ( Model, Cmd Msg )
-update context msg ({ client } as model) =
+update context msg ({ settings } as model) =
     case msg of
         NoOp ->
             pure model
 
-        AddToSchedule day ->
-            pure { model | client = { client | schedule = day :: client.schedule } }
-
-        RemoveFromSchedule day ->
-            pure { model | client = { client | schedule = remove day client.schedule } }
-
         LoadMore ->
-            pure { model | weeksToProject = 6 + model.weeksToProject }
+            pure { model | settings = { settings | weeksToProject = 6 + settings.weeksToProject } }
 
 
 pure : Model -> ( Model, Cmd Msg )
@@ -149,30 +125,30 @@ view model =
 viewContent : Model -> Element Msg
 viewContent model =
     concat
-        [ viewSidebar model.client model.exercises
-        , viewSchedule model.weeksToProject model.client model.exercises
+        [ viewSidebar model.settings model.exercises
+        , viewSchedule model.settings model.exercises
         ]
 
 
-viewSidebar : Client -> List Exercise -> Element Msg
-viewSidebar client exercises =
+viewSidebar : Settings -> List Exercise -> Element Msg
+viewSidebar settings exercises =
     el
         [ bulma.tile, is.four ]
         [ el
             [ is.parent ]
             [ el
                 [ bulma.notification, is.white ]
-                [ h1 [ bulma.title ] [ text client.name ]
+                [ h1 [ bulma.title ] [ text settings.client ]
                 , label [ bulma.label ] [ text "Schedule" ]
                 , el
                     [ bulma.field, has.addons ]
-                    [ viewDay client.schedule Date.Mon
-                    , viewDay client.schedule Date.Tue
-                    , viewDay client.schedule Date.Wed
-                    , viewDay client.schedule Date.Thu
-                    , viewDay client.schedule Date.Fri
-                    , viewDay client.schedule Date.Sat
-                    , viewDay client.schedule Date.Sun
+                    [ viewDay [] Date.Mon
+                    , viewDay [] Date.Tue
+                    , viewDay [] Date.Wed
+                    , viewDay [] Date.Thu
+                    , viewDay [] Date.Fri
+                    , viewDay [] Date.Sat
+                    , viewDay [] Date.Sun
                     ]
                 , hr
                 , el
@@ -223,19 +199,19 @@ viewDay schedule day =
     el
         [ bulma.control ]
         [ button
-            (bulma.button :: scheduleAttrs schedule day)
+            [ bulma.button ]
             [ text <| Days.toString day ]
         ]
 
 
-viewSchedule : Int -> Client -> List Exercise -> Element Msg
-viewSchedule weeksToProject client exercises =
+viewSchedule : Settings -> List Exercise -> Element Msg
+viewSchedule settings exercises =
     let
         projection =
             generatePlan
                 { exercises = exercises
-                , weeksToProject = weeksToProject
-                , daysPerWeek = List.length client.schedule
+                , weeksToProject = settings.weeksToProject
+                , daysPerWeek = {- TODO -} 3
                 }
     in
     el [ bulma.tile, is.vertical ] <|
@@ -295,14 +271,6 @@ viewSetsReps sets reps =
         , nbsp
         , el [ has.textWeightBold ] [ text <| toString reps ]
         ]
-
-
-scheduleAttrs : List Date.Day -> Date.Day -> List (Attribute Msg)
-scheduleAttrs schedule day =
-    if List.member day schedule then
-        [ is.selected, is.info, onClick <| RemoveFromSchedule day ]
-    else
-        [ onClick <| AddToSchedule day ]
 
 
 onInt : (Int -> msg) -> Attribute msg

@@ -1,14 +1,13 @@
 module Main exposing (..)
 
-import Client.Page
-import Dashboard.Page
-import Exercise.Page
 import Global
 import Html
 import Js
 import Json.Decode
 import Navigation
+import Plan.Page
 import Route
+import Settings.Page
 import Task
 import Ui
 
@@ -21,9 +20,8 @@ type alias Model =
 
 type Page
     = Blank
-    | Dashboard Dashboard.Page.Model
-    | Client Client.Page.Model
-    | Exercise Exercise.Page.Model
+    | Settings Settings.Page.Model
+    | Plan Plan.Page.Model
 
 
 init : Json.Decode.Value -> Navigation.Location -> ( Model, Cmd Msg )
@@ -48,9 +46,8 @@ type Msg
 
 
 type PageMsg
-    = DashboardMsg Dashboard.Page.Msg
-    | ClientMsg Client.Page.Msg
-    | ExerciseMsg Exercise.Page.Msg
+    = SettingsMsg Settings.Page.Msg
+    | PlanMsg Plan.Page.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -79,17 +76,13 @@ update msg model =
 updatePage : Global.Context -> PageMsg -> Page -> ( Page, Cmd PageMsg )
 updatePage context msg page =
     case ( msg, page ) of
-        ( DashboardMsg pageMsg, Dashboard model ) ->
-            Dashboard.Page.update context pageMsg model
-                |> mapBoth Dashboard (Cmd.map DashboardMsg)
+        ( SettingsMsg pageMsg, Settings model ) ->
+            Settings.Page.update context pageMsg model
+                |> mapBoth Settings (Cmd.map SettingsMsg)
 
-        ( ClientMsg pageMsg, Client model ) ->
-            Client.Page.update context pageMsg model
-                |> mapBoth Client (Cmd.map ClientMsg)
-
-        ( ExerciseMsg pageMsg, Exercise model ) ->
-            Exercise.Page.update context pageMsg model
-                |> mapBoth Exercise (Cmd.map ExerciseMsg)
+        ( PlanMsg pageMsg, Plan model ) ->
+            Plan.Page.update context pageMsg model
+                |> mapBoth Plan (Cmd.map PlanMsg)
 
         _ ->
             ( page, Cmd.none )
@@ -104,20 +97,17 @@ goTo : Maybe Route.Route -> Model -> ( Model, Cmd Msg )
 goTo destination ({ context } as model) =
     case destination of
         Nothing ->
-            ( model, Route.modifyUrl Route.Dashboard )
+            ( model, Route.modifyUrl Route.Plan )
 
-        Just Route.Dashboard ->
-            ( model, Task.attempt (load Dashboard) <| Dashboard.Page.init context )
+        Just Route.Settings ->
+            ( model, Task.attempt (load Settings) <| Settings.Page.init context )
 
-        Just (Route.Client id) ->
-            ( model, Task.attempt (load Client) <| Client.Page.init context id )
-
-        Just (Route.Exercise id) ->
-            ( model, Task.attempt (load Exercise) <| Exercise.Page.init context id )
+        Just Route.Plan ->
+            ( model, Task.attempt (load Plan) <| Plan.Page.init context )
 
         Just (Route.TokenRedirect idToken) ->
             ( { model | context = { context | auth = Just idToken } }
-            , Cmd.batch [ Js.saveToken idToken, Route.modifyUrl Route.Dashboard ]
+            , Cmd.batch [ Js.saveToken idToken, Route.modifyUrl Route.Plan ]
             )
 
 
@@ -138,14 +128,11 @@ subscriptions model =
             Blank ->
                 Sub.none
 
-            Dashboard page ->
+            Settings page ->
                 Sub.none
 
-            Client page ->
+            Plan page ->
                 Sub.none
-
-            Exercise page ->
-                Sub.map ExerciseMsg <| Exercise.Page.subscriptions page
 
 
 view : Model -> Html.Html Msg
@@ -155,14 +142,11 @@ view { page } =
             Blank ->
                 Html.text ""
 
-            Dashboard model ->
-                Ui.toHtml DashboardMsg [ Dashboard.Page.view model ]
+            Settings model ->
+                Ui.toHtml SettingsMsg [ Settings.Page.view model ]
 
-            Client model ->
-                Ui.toHtml ClientMsg [ Client.Page.view model ]
-
-            Exercise model ->
-                Ui.toHtml ExerciseMsg [ Exercise.Page.view model ]
+            Plan model ->
+                Ui.toHtml PlanMsg [ Plan.Page.view model ]
 
 
 main : Program Json.Decode.Value Model Msg

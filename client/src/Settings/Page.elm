@@ -1,4 +1,4 @@
-module Dashboard.Page exposing (Model, Msg, init, update, view)
+module Settings.Page exposing (Model, Msg, init, update, view)
 
 import Global
 import Html.Events exposing (..)

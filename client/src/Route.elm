@@ -8,16 +8,15 @@ import UrlParser exposing (..)
 
 
 type Route
-    = Dashboard
-    | Client String
-    | Exercise String
+    = Settings
+    | Plan
     | TokenRedirect String
 
 
 fromLocation : Location -> Maybe Route
 fromLocation location =
     if String.isEmpty location.hash then
-        Just Dashboard
+        Nothing
     else
         parseHash route location
 
@@ -26,9 +25,8 @@ route : Parser (Route -> a) a
 route =
     oneOf
         [ map TokenRedirect <| custom "ID TOKEN" Global.parseToken
-        , map Dashboard <| s ""
-        , map Client <| s "client" </> string
-        , map Exercise <| s "exercise" </> string
+        , map Settings <| s "settings"
+        , map Plan <| s "plan"
         ]
 
 
@@ -45,14 +43,11 @@ href =
 hash : Route -> String
 hash route =
     case route of
-        Dashboard ->
-            "#/"
+        Settings ->
+            "#/settings"
 
-        Client id ->
-            "#/client/" ++ id
-
-        Exercise id ->
-            "#/exercise/" ++ id
+        Plan ->
+            "#/plan"
 
         TokenRedirect _ ->
             "#/"
