@@ -22,12 +22,12 @@ const showError = () => {
 };
 
 const getExercises = spreadsheet => {
-  return Promise.all(spreadsheet.result.sheets
-    .filter(sheet => !sheet.properties.title.startsWith("_"))
-    .map(sheet => gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: spreadsheet.result.spreadsheetId,
-      range: `${sheet.properties.title}!A1:Z100`,
-    }))).then(grids => ({ meta: spreadsheet, exercises: grids }));
+  return gapi.client.sheets.spreadsheets.values.batchGet({
+    spreadsheetId: spreadsheet.result.spreadsheetId,
+    ranges: spreadsheet.result.sheets
+      .filter(sheet => !sheet.properties.title.startsWith("_"))
+      .map(sheet => `${sheet.properties.title}!A1:Z100`),
+  }).then(grids => ({ meta: spreadsheet.result, exercises: grids.result }));
 };
 
 const launchPicker = auth => () => {
