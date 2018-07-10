@@ -337,10 +337,10 @@ generatePlan { exercises, weeksToProject, daysPerWeek } =
         }
 
 
-main : Program Never Model Msg
+main : Program D.Value Model Msg
 main =
-    Html.program
-        { init = init
+    Html.programWithFlags
+        { init = \_ -> init
         , update = update
         , view = \model -> Ui.toHtml identity [ view model ]
         , subscriptions = \_ -> Sub.none
