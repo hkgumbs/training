@@ -3,23 +3,17 @@ module Main exposing (Model, Msg, init, update, view)
 import Date
 import Days
 import Html
-import Html.Attributes exposing (placeholder)
+import Html.Attributes exposing (defaultValue, placeholder)
 import Html.Events exposing (..)
-import Js
 import Json.Decode as D
 import Ui exposing (..)
 
 
 type alias Model =
-    { settings : Settings
-    , sheetSearch : String
-    , exercises : Maybe (List Exercise)
-    }
-
-
-type alias Settings =
-    { client : String
+    { doc : String
+    , clientName : String
     , weeksToProject : Int
+    , exercises : List Exercise
     }
 
 
@@ -40,58 +34,78 @@ type alias Movement =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
-    pure
-        { settings = { client = "Client", weeksToProject = 6 }
-        , sheetSearch = ""
-        , exercises = Nothing
-        }
+init : D.Value -> ( Result String Model, Cmd Msg )
+init flag =
+    D.decodeValue exercises flag
+        |> Result.map (\( doc, exercises ) -> Model doc "" 6 exercises)
+        |> pure
 
 
-exercises : D.Decoder (List Exercise)
+exercises : D.Decoder ( String, List Exercise )
 exercises =
-    D.list
-        (D.map3 Exercise
-            (D.field "name" D.string)
-            (D.field "features" (D.list D.string))
-            (D.field "movements"
-                (D.list
-                    (D.map6 Movement
-                        (D.field "name" D.string)
-                        (D.field "sets" D.int)
-                        (D.field "reps" D.int)
-                        (D.field "load" D.string)
-                        (D.field "rest" D.int)
-                        (D.field "progression_rate" D.int)
-                    )
-                )
+    D.map2 (,)
+        (D.field "doc" D.string)
+        (D.andThen (List.foldr (D.map2 (::)) (D.succeed []))
+            (D.map2 (List.map2 parseExercise)
+                (D.field "names" (D.list D.string))
+                (D.field "exercises" (D.list (D.list (D.list D.string))))
             )
         )
 
 
+parseExercise : String -> List (List String) -> D.Decoder Exercise
+parseExercise name data =
+    D.succeed
+        { name = name
+        , features = {- TODO -} []
+        , movements = {- TODO -} []
+        }
+
+
+
+-- D.list
+--     (D.map3 Exercise
+--         (D.field "name" D.string)
+--         (D.field "features" (D.list D.string))
+--         (D.field "movements"
+--             (D.list
+--                 (D.map6 Movement
+--                     (D.field "name" D.string)
+--                     (D.field "sets" D.int)
+--                     (D.field "reps" D.int)
+--                     (D.field "load" D.string)
+--                     (D.field "rest" D.int)
+--                     (D.field "progression_rate" D.int)
+--                 )
+--             )
+--         )
+--     )
+
+
 type Msg
-    = Login
-    | SheetSearch
-    | LoadMore
+    = NoOp
+
+
+updateResult : Msg -> Result x Model -> ( Result x Model, Cmd Msg )
+updateResult msg result =
+    case result of
+        Err _ ->
+            pure result
+
+        Ok model ->
+            Tuple.mapFirst Ok <| update msg model
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ settings } as model) =
+update msg model =
     case msg of
-        Login ->
-            ( model, Js.login )
-
-        SheetSearch ->
-            ( model, Js.pickSheet model.sheetSearch )
-
-        LoadMore ->
-            pure { model | settings = { settings | weeksToProject = 6 + settings.weeksToProject } }
+        NoOp ->
+            pure model
 
 
-pure : Model -> ( Model, Cmd Msg )
-pure model =
-    ( model, Cmd.none )
+pure : x -> ( x, Cmd Msg )
+pure x =
+    ( x, Cmd.none )
 
 
 remove : a -> List a -> List a
@@ -99,69 +113,53 @@ remove a =
     List.filter ((/=) a)
 
 
-view : Model -> Element Msg
-view model =
-    case model.exercises of
-        Nothing ->
-            el
-                [ bulma.hero, is.bold, is.light, is.fullheight ]
-                [ el [ bulma.heroBody ] [ viewStep1 ] ]
+view : Result String Model -> Element Msg
+view result =
+    case result of
+        Err reason ->
+            text reason
 
-        Just exercises ->
-            el
-                [ bulma.container ]
-                [ el [ bulma.section ] [ viewStep2 model.settings exercises ] ]
-
-
-viewStep1 : Element Msg
-viewStep1 =
-    el
-        [ bulma.container ]
-        [ h1
-            [ bulma.title ]
-            [ text "1. Import your exercises" ]
-        , el
-            [ bulma.buttons ]
-            [ el
-                [ bulma.control ]
-                [ button [ bulma.button, onClick Login ] [ text "Login" ] ]
-            , el
-                [ bulma.control ]
-                [ button
-                    [ bulma.button, is.primary, onClick SheetSearch ]
-                    [ text "Pick" ]
+        Ok model ->
+            concat
+                [ viewNav model.doc
+                , el
+                    [ bulma.container ]
+                    [ el [ bulma.section ]
+                        [ el
+                            [ bulma.tile, is.ancestor ]
+                            [ el
+                                [ bulma.tile ]
+                                [ viewSidebar model
+                                , viewSchedule model
+                                ]
+                            ]
+                        ]
+                    ]
                 ]
-            ]
-        ]
 
 
-viewStep2 : Settings -> List Exercise -> Element Msg
-viewStep2 settings exercises =
-    el
-        [ bulma.tile, is.ancestor ]
-        [ el
-            [ bulma.tile, is.vertical ]
-            [ h1
-                [ bulma.tile, is.child, bulma.title ]
-                [ text "2. Create a plan" ]
-            , el
-                [ bulma.tile ]
-                [ viewSidebar settings exercises
-                , viewSchedule settings exercises
-                ]
-            ]
-        ]
+viewNav : String -> Element Msg
+viewNav doc =
+    el {- TODO -} [] []
 
 
-viewSidebar : Settings -> List Exercise -> Element Msg
-viewSidebar settings exercises =
+viewSidebar : Model -> Element Msg
+viewSidebar model =
     el
         [ bulma.tile, is.four ]
         [ el
             [ is.parent ]
             [ el
                 [ bulma.notification, is.white ]
-                [ h1 [ bulma.title ] [ text settings.client ]
+                [ el
+                    [ bulma.field ]
+                    [ input
+                        [ bulma.input
+                        , is.medium
+                        , placeholder "Client"
+                        , defaultValue model.clientName
+                        ]
+                    ]
                 , label [ bulma.label ] [ text "Schedule" ]
                 , el
                     [ bulma.field, has.addons ]
@@ -180,12 +178,12 @@ viewSidebar settings exercises =
                     , el
                         [ bulma.control, has.iconsLeft ]
                         [ icon "search"
-                        , input [ bulma.input, placeholder "Add an exercise..." ]
+                        , input [ bulma.input, placeholder "Find an exercise..." ]
                         ]
                     ]
                 , el
                     [ bulma.columns ]
-                    [ el [ bulma.column ] <| List.map viewExercise exercises ]
+                    [ el [ bulma.column ] <| List.map viewExercise model.exercises ]
                 ]
             ]
         ]
@@ -227,25 +225,17 @@ viewDay schedule day =
         ]
 
 
-viewSchedule : Settings -> List Exercise -> Element Msg
-viewSchedule settings exercises =
+viewSchedule : Model -> Element Msg
+viewSchedule model =
     let
         projection =
             generatePlan
-                { exercises = exercises
-                , weeksToProject = settings.weeksToProject
+                { exercises = model.exercises
+                , weeksToProject = model.weeksToProject
                 , daysPerWeek = {- TODO -} 3
                 }
     in
-    el [ bulma.tile, is.vertical ] <|
-        List.map viewWeek projection
-            ++ [ el
-                    [ bulma.tile, is.parent ]
-                    [ button
-                        [ bulma.button, bulma.tile, is.child, onClick LoadMore ]
-                        [ text "Load more" ]
-                    ]
-               ]
+    el [ bulma.tile, is.vertical ] <| List.map viewWeek projection
 
 
 viewWeek : { week : List { workout : List Movement } } -> Element Msg
@@ -337,11 +327,11 @@ generatePlan { exercises, weeksToProject, daysPerWeek } =
         }
 
 
-main : Program D.Value Model Msg
+main : Program D.Value (Result String Model) Msg
 main =
     Html.programWithFlags
-        { init = Debug.log "FLAG" >> always init
-        , update = update
+        { init = init
+        , update = updateResult
         , view = \model -> Ui.toHtml identity [ view model ]
         , subscriptions = \_ -> Sub.none
         }

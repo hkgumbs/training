@@ -22,12 +22,16 @@ const showError = () => {
 };
 
 const getExercises = spreadsheet => {
+  const sheets = spreadsheet.result.sheets
+      .filter(sheet => !sheet.properties.title.startsWith("_"));
   return gapi.client.sheets.spreadsheets.values.batchGet({
     spreadsheetId: spreadsheet.result.spreadsheetId,
-    ranges: spreadsheet.result.sheets
-      .filter(sheet => !sheet.properties.title.startsWith("_"))
-      .map(sheet => `${sheet.properties.title}!A1:Z100`),
-  }).then(grids => ({ meta: spreadsheet.result, exercises: grids.result }));
+    ranges: sheets.map(sheet => `${sheet.properties.title}!A1:Z100`),
+  }).then(grids => ({
+    doc: spreadsheet.result.properties.title,
+    names: sheets.map(sheet => sheet.properties.title),
+    exercises: grids.result.valueRanges.map(range => range.values),
+  }));
 };
 
 const launchPicker = auth => () => {
@@ -42,7 +46,7 @@ const launchPicker = auth => () => {
         gapi.client.sheets.spreadsheets
           .get({ spreadsheetId: data.docs[0].id })
           .then(getExercises)
-          .then(exercises => { node.innerHTML = ""; Main.embed(node, exercises) })
+          .then(exercises => { node.innerHTML = ""; Main.embed(node, p(exercises)) })
           .catch(showError);
       })
       .build()
@@ -63,5 +67,7 @@ gapi.load("client:auth2", () => {
       : auth.signIn().then(launchPicker(auth), showError);
   }).catch(showError);
 });
+
+const p = v => { console.log(v); return v; }
 
 registerServiceWorker();

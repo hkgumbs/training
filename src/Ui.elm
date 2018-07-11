@@ -17,12 +17,15 @@ module Ui
         , input
         , is
         , label
+        , li
         , nbsp
+        , ol
         , option
         , select
         , stylesheet
         , text
         , toHtml
+        , ul
         , when
         )
 
@@ -118,6 +121,21 @@ h1 =
 h2 : List (Attribute msg) -> List (Element msg) -> Element msg
 h2 =
     El "h2"
+
+
+ul : List (Attribute msg) -> List (Element msg) -> Element msg
+ul =
+    El "ul"
+
+
+ol : List (Attribute msg) -> List (Element msg) -> Element msg
+ol =
+    El "ol"
+
+
+li : List (Attribute msg) -> List (Element msg) -> Element msg
+li =
+    El "li"
 
 
 button : List (Attribute msg) -> List (Element msg) -> Element msg
@@ -327,6 +345,7 @@ bulma :
     , container : Attribute msg
     , section : Attribute msg
     , box : Attribute msg
+    , breadcrumb : Attribute msg
     , notification : Attribute msg
     , tag : Attribute msg
     , tags : Attribute msg
@@ -334,6 +353,16 @@ bulma :
     , levelItem : Attribute msg
     , levelLeft : Attribute msg
     , levelRight : Attribute msg
+    , navbar : Attribute msg
+    , navbarBrand : Attribute msg
+    , navbarBurger : Attribute msg
+    , navbarMenu : Attribute msg
+    , navbarStart : Attribute msg
+    , navbarEnd : Attribute msg
+    , navbarItem : Attribute msg
+    , navbarLink : Attribute msg
+    , navbarDropdown : Attribute msg
+    , navbarDivider : Attribute msg
     , field : Attribute msg
     , label : Attribute msg
     , control : Attribute msg
@@ -362,6 +391,7 @@ bulma =
     , container = class "container"
     , section = class "section"
     , box = class "box"
+    , breadcrumb = class "breadcrumb"
     , notification = class "notification"
     , tag = class "tag"
     , tags = class "tags"
@@ -369,6 +399,16 @@ bulma =
     , levelItem = class "level-item"
     , levelLeft = class "level-left"
     , levelRight = class "level-right"
+    , navbar = class "navbar"
+    , navbarBrand = class "navbar-brand"
+    , navbarBurger = class "navbar-burger"
+    , navbarMenu = class "navbbar-menu"
+    , navbarStart = class "navbar-start"
+    , navbarEnd = class "navbar-end"
+    , navbarItem = class "navbar-item"
+    , navbarLink = class "navbar-link"
+    , navbarDropdown = class "navbar-dropdown"
+    , navbarDivider = class "navbar-divider"
     , field = class "field"
     , label = class "label"
     , control = class "control"
