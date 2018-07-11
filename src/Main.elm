@@ -122,16 +122,13 @@ view result =
         Ok model ->
             concat
                 [ viewNav model.doc
-                , el
-                    [ bulma.container ]
-                    [ el [ bulma.section ]
+                , el [ bulma.section ]
+                    [ el
+                        [ bulma.tile, is.ancestor ]
                         [ el
-                            [ bulma.tile, is.ancestor ]
-                            [ el
-                                [ bulma.tile ]
-                                [ viewSidebar model
-                                , viewSchedule model
-                                ]
+                            [ bulma.tile ]
+                            [ viewSidebar model
+                            , viewSchedule model
                             ]
                         ]
                     ]
@@ -160,17 +157,6 @@ viewSidebar model =
                         , defaultValue model.clientName
                         ]
                     ]
-                , label [ bulma.label ] [ text "Schedule" ]
-                , el
-                    [ bulma.field, has.addons ]
-                    [ viewDay [] Date.Mon
-                    , viewDay [] Date.Tue
-                    , viewDay [] Date.Wed
-                    , viewDay [] Date.Thu
-                    , viewDay [] Date.Fri
-                    , viewDay [] Date.Sat
-                    , viewDay [] Date.Sun
-                    ]
                 , hr
                 , el
                     [ bulma.field ]
@@ -193,25 +179,33 @@ viewExercise : Exercise -> Element Msg
 viewExercise exercise =
     el
         [ bulma.box ]
+        [ viewHeader exercise.name
+        , viewDays {- TODO -} []
+        , viewFeatures exercise.features
+        ]
+
+
+viewHeader : String -> Element Msg
+viewHeader name =
+    el
+        [ bulma.level ]
         [ el
-            [ bulma.level ]
-            [ el
-                [ bulma.levelLeft ]
-                [ h2 [ bulma.subtitle ] [ text exercise.name ] ]
-            , el
-                [ bulma.levelRight ]
-                [ button
-                    [ bulma.button
-                    , is.danger
-                    , is.outlined
-                    ]
-                    [ icon "minus-circle" ]
-                ]
-            ]
-        , el [ bulma.tags ] <|
-            List.map
-                (\name -> el [ bulma.tag ] [ text name ])
-                exercise.features
+            [ bulma.levelLeft ]
+            [ h2 [ bulma.subtitle ] [ text name ] ]
+        ]
+
+
+viewDays : List Date.Day -> Element Msg
+viewDays schedule =
+    el
+        [ bulma.field, has.addons ]
+        [ viewDay schedule Date.Mon
+        , viewDay schedule Date.Tue
+        , viewDay schedule Date.Wed
+        , viewDay schedule Date.Thu
+        , viewDay schedule Date.Fri
+        , viewDay schedule Date.Sat
+        , viewDay schedule Date.Sun
         ]
 
 
@@ -223,6 +217,11 @@ viewDay schedule day =
             [ bulma.button ]
             [ text <| Days.toString day ]
         ]
+
+
+viewFeatures : List String -> Element Msg
+viewFeatures =
+    el [ bulma.tags ] << List.map (\name -> el [ bulma.tag ] [ text name ])
 
 
 viewSchedule : Model -> Element Msg
