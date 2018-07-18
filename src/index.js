@@ -62,7 +62,7 @@ gapi.load("client:auth2", () => {
     scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
   }).then(() => {
     const auth = gapi.auth2.getAuthInstance();
-    const config = { ux_mode: "redirect", redirect_uri: location.href };
+    const config = { ux_mode: "redirect" };
     auth.isSignedIn.get()
       ? launchPicker(auth)
       : auth.signIn(config).then(() => launchPicker(auth), showError);
