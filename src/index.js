@@ -34,7 +34,7 @@ const getExercises = spreadsheet => {
   }));
 };
 
-const launchPicker = auth => () => {
+const launchPicker = auth => {
   gapi.load("picker", () => {
     new google.picker.PickerBuilder()
       .addView(google.picker.ViewId.SPREADSHEETS)
@@ -46,7 +46,7 @@ const launchPicker = auth => () => {
         gapi.client.sheets.spreadsheets
           .get({ spreadsheetId: data.docs[0].id })
           .then(getExercises)
-          .then(exercises => { node.innerHTML = ""; Main.embed(node, p(exercises)) })
+          .then(exercises => { node.innerHTML = ""; Main.embed(node, exercises) })
           .catch(showError);
       })
       .build()
@@ -62,12 +62,11 @@ gapi.load("client:auth2", () => {
     scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
   }).then(() => {
     const auth = gapi.auth2.getAuthInstance();
+    const config = { ux_mode: "redirect", redirect_uri: location.href };
     auth.isSignedIn.get()
-      ? launchPicker(auth)()
-      : auth.signIn().then(launchPicker(auth), showError);
+      ? launchPicker(auth)
+      : auth.signIn(config).then(() => launchPicker(auth), showError);
   }).catch(showError);
 });
-
-const p = v => { console.log(v); return v; }
 
 registerServiceWorker();
