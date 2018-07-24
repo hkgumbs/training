@@ -13,7 +13,7 @@ import Ui exposing (..)
 type alias Model =
     { clientName : String
     , weeksToProject : Int
-    , doc : String
+    , document : String
     , exercises : List Exercise
     }
 
@@ -54,7 +54,7 @@ init flag =
 exercises : D.Decoder ( String, List Exercise )
 exercises =
     D.map2 (,)
-        (D.field "doc" D.string)
+        (D.field "document" D.string)
         (D.andThen (List.foldr (D.map2 (::)) (D.succeed []))
             (D.map2 (List.map2 parseExercise)
                 (D.field "names" (D.list D.string))
@@ -187,7 +187,7 @@ view result =
 
         Ok model ->
             concat
-                [ viewNav model.doc
+                [ viewNav model.document
                 , el [ bulma.section ]
                     [ el
                         [ bulma.tile, is.ancestor ]
@@ -202,7 +202,7 @@ view result =
 
 
 viewNav : String -> Element Msg
-viewNav doc =
+viewNav document =
     el {- TODO -} [] []
 
 
