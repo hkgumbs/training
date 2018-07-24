@@ -1,5 +1,6 @@
 module Main exposing (Model, Msg, init, update, view)
 
+import Array exposing (Array)
 import Date
 import Days
 import Html
@@ -10,9 +11,9 @@ import Ui exposing (..)
 
 
 type alias Model =
-    { doc : String
-    , clientName : String
+    { clientName : String
     , weeksToProject : Int
+    , doc : String
     , exercises : List Exercise
     }
 
@@ -25,19 +26,28 @@ type alias Exercise =
 
 
 type alias Movement =
-    { name : String
-    , sets : Int
-    , reps : Int
-    , load : String
-    , rest : Int
-    , progressionRate : Int
+    Row String Int
+
+
+type alias Headers =
+    Row Int Int
+
+
+type alias Row string int =
+    { name : string
+    , sets : int
+    , reps : int
+    , load : string
+    , rest : int
+    , progressionRate : int
+    , notes : string
     }
 
 
 init : D.Value -> ( Result String Model, Cmd Msg )
 init flag =
     D.decodeValue exercises flag
-        |> Result.map (\( doc, exercises ) -> Model doc "" 6 exercises)
+        |> Result.map (uncurry (Model "" 6))
         |> pure
 
 
@@ -54,32 +64,88 @@ exercises =
 
 
 parseExercise : String -> List (List String) -> D.Decoder Exercise
-parseExercise name data =
-    D.succeed
-        { name = name
-        , features = {- TODO -} []
-        , movements = {- TODO -} []
-        }
+parseExercise name table =
+    case table of
+        [] ->
+            badFormat name "since this it is empty"
+
+        headers :: exercises ->
+            D.map7 Row
+                (findHeader "name" name headers)
+                (findHeader "sets" name headers)
+                (findHeader "reps" name headers)
+                (findHeader "load" name headers)
+                (findHeader "rest" name headers)
+                (findHeader "progression rate" name headers)
+                (findHeader "notes" name headers)
+                |> D.andThen
+                    (\headers ->
+                        case
+                            exercises
+                                |> List.map (parseMovement headers << Array.fromList)
+                                |> List.foldr (Result.map2 (::)) (Ok [])
+                        of
+                            Err reason ->
+                                badFormat name reason
+
+                            Ok movements ->
+                                D.succeed <| Exercise name [{- TODO -}] movements
+                    )
 
 
+parseMovement : Headers -> Array String -> Result String Movement
+parseMovement headers data =
+    Result.map4
+        (\sets reps rest progressionRate ->
+            { sets = sets
+            , reps = reps
+            , rest = rest
+            , progressionRate = progressionRate
+            , name = findCell headers.name data
+            , load = findCell headers.load data
+            , notes = findCell headers.notes data
+            }
+        )
+        (String.toInt <| findCell headers.sets data)
+        (String.toInt <| findCell headers.reps data)
+        (String.toInt <| findCell headers.rest data)
+        (String.toInt <| findCell headers.progressionRate data)
 
--- D.list
---     (D.map3 Exercise
---         (D.field "name" D.string)
---         (D.field "features" (D.list D.string))
---         (D.field "movements"
---             (D.list
---                 (D.map6 Movement
---                     (D.field "name" D.string)
---                     (D.field "sets" D.int)
---                     (D.field "reps" D.int)
---                     (D.field "load" D.string)
---                     (D.field "rest" D.int)
---                     (D.field "progression_rate" D.int)
---                 )
---             )
---         )
---     )
+
+findCell : Int -> Array String -> String
+findCell index =
+    Array.get index >> Maybe.withDefault ""
+
+
+findHeader : String -> String -> List String -> D.Decoder Int
+findHeader name sheet headers =
+    findHeaderHelp name sheet headers 0
+
+
+findHeaderHelp : String -> String -> List String -> Int -> D.Decoder Int
+findHeaderHelp name sheet headers index =
+    case headers of
+        [] ->
+            badFormat sheet <|
+                "since it does not have a `"
+                    ++ name
+                    ++ "` column!"
+
+        next :: rest ->
+            if next == name then
+                D.succeed index
+            else
+                findHeaderHelp name sheet rest (index + 1)
+
+
+badFormat : String -> String -> D.Decoder a
+badFormat sheet because =
+    D.fail <|
+        "The sheet `"
+            ++ sheet
+            ++ "` is not formatted incorreclty, "
+            ++ because
+            ++ "!"
 
 
 type Msg
