@@ -255,10 +255,7 @@ viewHeader : String -> Element Msg
 viewHeader name =
     el
         [ bulma.level ]
-        [ el
-            [ bulma.levelLeft ]
-            [ h2 [ bulma.subtitle ] [ text name ] ]
-        ]
+        [ el [ bulma.levelLeft ] [ h2 [ bulma.subtitle ] [ text name ] ] ]
 
 
 viewDays : Exercise -> List ( Date.Day, Exercise ) -> Element Msg
@@ -283,16 +280,8 @@ viewDays exercise selected =
             [ bulma.dropdownMenu ]
             [ el
                 [ bulma.dropdownContent ]
-                [ el
-                    [ bulma.dropdownItem ]
-                    [ viewDay exercise schedule Date.Mon
-                    , viewDay exercise schedule Date.Tue
-                    , viewDay exercise schedule Date.Wed
-                    , viewDay exercise schedule Date.Thu
-                    , viewDay exercise schedule Date.Fri
-                    , viewDay exercise schedule Date.Sat
-                    , viewDay exercise schedule Date.Sun
-                    ]
+                [ el [ bulma.dropdownItem ] <|
+                    List.map (viewDay exercise schedule) Days.list
                 ]
             ]
         ]
@@ -326,7 +315,19 @@ viewSchedule model =
         projection =
             generatePlan model.weeksToProject model.selected
     in
-    el [ bulma.tile, is.vertical ] <| List.map viewWeek projection
+    if List.all (.week >> List.isEmpty) projection then
+        el
+            [ bulma.tile, is.parent ]
+            [ el
+                [ bulma.tile, is.child ]
+                [ h2 [ bulma.subtitle ] [ text "Nothing to see yet!" ]
+                , text "Try using "
+                , icon "calendar"
+                , text " to add exercises to the schedule."
+                ]
+            ]
+    else
+        el [ bulma.tile, is.vertical ] <| List.map viewWeek projection
 
 
 viewWeek : { week : List { workout : List Movement } } -> Element Msg
@@ -346,21 +347,19 @@ viewWorkout { workout } =
 
 viewMovement : Movement -> Element Msg
 viewMovement movement =
-    concat
+    el
+        [ bulma.columns ]
         [ el
-            [ bulma.columns ]
-            [ el
-                [ bulma.column ]
-                [ h2 [ bulma.subtitle ] [ text movement.name ]
+            [ bulma.column ]
+            [ h2 [ bulma.subtitle ] [ text movement.name ]
+            , el
+                [ bulma.level ]
+                [ el
+                    [ bulma.levelItem ]
+                    [ viewSetsReps movement.sets movement.reps ]
                 , el
-                    [ bulma.level ]
-                    [ el
-                        [ bulma.levelItem ]
-                        [ viewSetsReps movement.sets movement.reps ]
-                    , el
-                        [ bulma.levelItem ]
-                        [ el [ has.textWeightBold ] [ text movement.load ] ]
-                    ]
+                    [ bulma.levelItem ]
+                    [ el [ has.textWeightBold ] [ text movement.load ] ]
                 ]
             ]
         ]
@@ -408,13 +407,43 @@ generatePlan :
     -> List ( Date.Day, Exercise )
     -> List { week : List { workout : List Movement } }
 generatePlan weeksToProject selected =
-    List.repeat weeksToProject
-        { week =
-            -- TODO
-            List.repeat 3
-                { workout = []
-                }
-        }
+    List.range 1 weeksToProject
+        |> List.map (\index -> generateWeek index selected)
+
+
+generateWeek : Int -> List ( Date.Day, Exercise ) -> { week : List { workout : List Movement } }
+generateWeek index selected =
+    let
+        onDay day =
+            selected
+                |> List.filter (Tuple.first >> (==) day)
+                |> List.map Tuple.second
+    in
+    { week = List.filterMap (generateWorkout index << onDay) Days.list }
+
+
+generateWorkout : Int -> List Exercise -> Maybe { workout : List Movement }
+generateWorkout index exercises =
+    if List.isEmpty exercises then
+        Nothing
+    else
+        Just
+            { workout =
+                List.filterMap (.movements >> generateMovement index) exercises
+            }
+
+
+generateMovement : Int -> List Movement -> Maybe Movement
+generateMovement index movements =
+    case movements of
+        [] ->
+            Nothing
+
+        first :: rest ->
+            if index <= first.progressionRate then
+                Just first
+            else
+                generateMovement (index - first.progressionRate) rest
 
 
 main : Program D.Value (Result String Model) Msg
