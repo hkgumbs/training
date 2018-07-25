@@ -150,7 +150,8 @@ badFormat sheet because =
 
 
 type Msg
-    = Toggle Exercise Date.Day Bool
+    = InputClientName String
+    | Toggle Exercise Date.Day Bool
 
 
 updateResult : Msg -> Result x Model -> ( Result x Model, Cmd Msg )
@@ -166,6 +167,9 @@ updateResult msg result =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        InputClientName value ->
+            pure { model | clientName = value }
+
         Toggle exercise day True ->
             pure { model | selected = ( day, exercise ) :: model.selected }
 
@@ -211,12 +215,27 @@ viewSidebar model =
         [ el
             [ bulma.tile, is.child ]
             [ el
-                [ bulma.field ]
-                [ input
-                    [ bulma.input
-                    , is.medium
-                    , placeholder "Client name"
-                    , defaultValue model.clientName
+                [ bulma.field, has.addons ]
+                [ el
+                    [ bulma.control ]
+                    [ input
+                        [ bulma.input
+                        , is.medium
+                        , placeholder "Client name"
+                        , defaultValue model.clientName
+                        , onInput InputClientName
+                        ]
+                    ]
+                , el
+                    [ bulma.control ]
+                    [ button
+                        [ bulma.button
+                        , is.medium
+                        , disabled <|
+                            List.isEmpty model.selected
+                                || String.isEmpty model.clientName
+                        ]
+                        [ icon "file-download" ]
                     ]
                 ]
             , hr
@@ -351,28 +370,21 @@ viewMovement movement =
         [ bulma.columns ]
         [ el
             [ bulma.column ]
-            [ h2 [ bulma.subtitle ] [ text movement.name ]
+            [ h2 [ has.textWeightBold ] [ text movement.name ]
             , el
-                [ bulma.level ]
-                [ el
-                    [ bulma.levelItem ]
-                    [ viewSetsReps movement.sets movement.reps ]
-                , el
-                    [ bulma.levelItem ]
-                    [ el [ has.textWeightBold ] [ text movement.load ] ]
+                []
+                [ text <|
+                    toString movement.sets
+                        ++ " "
+                        ++ pluralize movement.sets "set"
+                        ++ " × "
+                        ++ toString movement.reps
+                        ++ " "
+                        ++ pluralize movement.reps "rep"
                 ]
+            , el [] [ text movement.load ]
+            , el [] [ text movement.notes ]
             ]
-        ]
-
-
-viewSetsReps : Int -> Int -> Element msg
-viewSetsReps sets reps =
-    concat
-        [ el [ has.textWeightBold ] [ text <| toString sets ]
-        , nbsp
-        , text "×"
-        , nbsp
-        , el [ has.textWeightBold ] [ text <| toString reps ]
         ]
 
 
