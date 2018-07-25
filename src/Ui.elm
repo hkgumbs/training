@@ -218,6 +218,7 @@ is :
     , expanded : Attribute msg
     , large : Attribute msg
     , medium : Attribute msg
+    , hoverable : Attribute msg
 
     -- BUTTONS
     , selected : Attribute msg
@@ -267,6 +268,7 @@ is =
     , expanded = class "is-expanded"
     , large = class "is-large"
     , medium = class "is-medium"
+    , hoverable = class "is-hoverable"
     , selected = class "is-selected"
     , static = class "is-static"
     , outlined = class "is-outlined"
@@ -373,6 +375,12 @@ bulma :
     , button : Attribute msg
     , buttons : Attribute msg
     , delete : Attribute msg
+    , dropdown : Attribute msg
+    , dropdownTrigger : Attribute msg
+    , dropdownMenu : Attribute msg
+    , dropdownContent : Attribute msg
+    , dropdownItem : Attribute msg
+    , dropdownDivider : Attribute msg
     , media : Attribute msg
     , mediaContent : Attribute msg
     , mediaLeft : Attribute msg
@@ -419,6 +427,12 @@ bulma =
     , button = class "button"
     , buttons = class "buttons"
     , delete = class "delete"
+    , dropdown = class "dropdown"
+    , dropdownTrigger = class "dropdown-triggerd"
+    , dropdownMenu = class "dropdown-menu"
+    , dropdownContent = class "dropdown-content"
+    , dropdownItem = class "dropdown-item"
+    , dropdownDivider = class "dropdown-divider"
     , media = class "media"
     , mediaContent = class "media-content"
     , mediaLeft = class "media-left"

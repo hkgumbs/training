@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Date
 import Days
 import Html
-import Html.Attributes exposing (defaultValue, placeholder)
+import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as D
 import Ui exposing (..)
@@ -13,8 +13,9 @@ import Ui exposing (..)
 type alias Model =
     { clientName : String
     , weeksToProject : Int
+    , selected : List ( Date.Day, Exercise )
     , document : String
-    , exercises : List Exercise
+    , library : List Exercise
     }
 
 
@@ -47,7 +48,7 @@ type alias Row string int =
 init : D.Value -> ( Result String Model, Cmd Msg )
 init flag =
     D.decodeValue exercises flag
-        |> Result.map (uncurry (Model "" 6))
+        |> Result.map (uncurry (Model "" 6 []))
         |> pure
 
 
@@ -149,7 +150,7 @@ badFormat sheet because =
 
 
 type Msg
-    = NoOp
+    = Toggle Exercise Date.Day Bool
 
 
 updateResult : Msg -> Result x Model -> ( Result x Model, Cmd Msg )
@@ -165,8 +166,11 @@ updateResult msg result =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoOp ->
-            pure model
+        Toggle exercise day True ->
+            pure { model | selected = ( day, exercise ) :: model.selected }
+
+        Toggle exercise day False ->
+            pure { model | selected = List.filter ((/=) ( day, exercise )) model.selected }
 
 
 pure : x -> ( x, Cmd Msg )
@@ -186,67 +190,63 @@ view result =
             text reason
 
         Ok model ->
-            concat
-                [ viewNav model.document
-                , el [ bulma.section ]
+            el
+                [ bulma.section ]
+                [ el
+                    [ bulma.container ]
                     [ el
                         [ bulma.tile, is.ancestor ]
                         [ el
                             [ bulma.tile ]
-                            [ viewSidebar model
-                            , viewSchedule model
-                            ]
+                            [ viewSidebar model, viewSchedule model ]
                         ]
                     ]
                 ]
-
-
-viewNav : String -> Element Msg
-viewNav document =
-    el {- TODO -} [] []
 
 
 viewSidebar : Model -> Element Msg
 viewSidebar model =
     el
-        [ bulma.tile, is.four ]
+        [ bulma.tile, is.three, is.parent ]
         [ el
-            [ is.parent ]
+            [ bulma.tile, is.child ]
             [ el
-                [ bulma.notification, is.white ]
-                [ el
-                    [ bulma.field ]
-                    [ input
-                        [ bulma.input
-                        , is.medium
-                        , placeholder "Client"
-                        , defaultValue model.clientName
-                        ]
+                [ bulma.field ]
+                [ input
+                    [ bulma.input
+                    , is.medium
+                    , placeholder "Client name"
+                    , defaultValue model.clientName
                     ]
-                , hr
-                , el
-                    [ bulma.field ]
-                    [ label [ bulma.label ] [ text "Exercises" ]
-                    , el
-                        [ bulma.control, has.iconsLeft ]
-                        [ icon "search"
-                        , input [ bulma.input, placeholder "Find an exercise..." ]
-                        ]
-                    ]
-                , el
-                    [ bulma.columns ]
-                    [ el [ bulma.column ] <| List.map viewExercise model.exercises ]
                 ]
+            , hr
+            , el
+                [ bulma.field ]
+                [ label [ bulma.label ] [ text "Exercises" ]
+                , el
+                    [ bulma.control, has.iconsLeft ]
+                    [ icon "search"
+                    , input [ bulma.input, placeholder "Find an exercise..." ]
+                    ]
+                ]
+            , el [] <| List.map (viewExercise model.selected) model.library
             ]
         ]
 
 
-viewExercise : Exercise -> Element Msg
-viewExercise exercise =
+viewExercise : List ( Date.Day, Exercise ) -> Exercise -> Element Msg
+viewExercise selected exercise =
     el
         [ bulma.box ]
-        [ viewHeader exercise.name
-        , viewDays {- TODO -} []
+        [ el
+            [ bulma.level ]
+            [ el
+                [ bulma.levelLeft ]
+                [ el [ bulma.levelItem ] [ viewHeader exercise.name ] ]
+            , el
+                [ bulma.levelRight ]
+                [ el [ bulma.levelItem ] [ viewDays exercise selected ] ]
+            ]
         , viewFeatures exercise.features
         ]
 
@@ -261,27 +261,57 @@ viewHeader name =
         ]
 
 
-viewDays : List Date.Day -> Element Msg
-viewDays schedule =
+viewDays : Exercise -> List ( Date.Day, Exercise ) -> Element Msg
+viewDays exercise selected =
+    let
+        schedule =
+            selected
+                |> List.filter (Tuple.second >> (==) exercise)
+                |> List.map Tuple.first
+    in
     el
-        [ bulma.field, has.addons ]
-        [ viewDay schedule Date.Mon
-        , viewDay schedule Date.Tue
-        , viewDay schedule Date.Wed
-        , viewDay schedule Date.Thu
-        , viewDay schedule Date.Fri
-        , viewDay schedule Date.Sat
-        , viewDay schedule Date.Sun
+        [ bulma.dropdown, is.hoverable ]
+        [ el
+            [ bulma.dropdownTrigger ]
+            [ button
+                [ bulma.button
+                , is.info |> when (not <| List.isEmpty schedule)
+                ]
+                [ icon "calendar" ]
+            ]
+        , el
+            [ bulma.dropdownMenu ]
+            [ el
+                [ bulma.dropdownContent ]
+                [ el
+                    [ bulma.dropdownItem ]
+                    [ viewDay exercise schedule Date.Mon
+                    , viewDay exercise schedule Date.Tue
+                    , viewDay exercise schedule Date.Wed
+                    , viewDay exercise schedule Date.Thu
+                    , viewDay exercise schedule Date.Fri
+                    , viewDay exercise schedule Date.Sat
+                    , viewDay exercise schedule Date.Sun
+                    ]
+                ]
+            ]
         ]
 
 
-viewDay : List Date.Day -> Date.Day -> Element Msg
-viewDay schedule day =
+viewDay : Exercise -> List Date.Day -> Date.Day -> Element Msg
+viewDay exercise schedule day =
     el
         [ bulma.control ]
-        [ button
-            [ bulma.button ]
-            [ text <| Days.toString day ]
+        [ label
+            []
+            [ input
+                [ type_ "checkbox"
+                , checked <| List.member day schedule
+                , onCheck <| Toggle exercise day
+                ]
+            , nbsp
+            , text <| Days.toString day
+            ]
         ]
 
 
@@ -294,11 +324,7 @@ viewSchedule : Model -> Element Msg
 viewSchedule model =
     let
         projection =
-            generatePlan
-                { exercises = model.exercises
-                , weeksToProject = model.weeksToProject
-                , daysPerWeek = {- TODO -} 3
-                }
+            generatePlan model.weeksToProject model.selected
     in
     el [ bulma.tile, is.vertical ] <| List.map viewWeek projection
 
@@ -313,7 +339,7 @@ viewWorkout { workout } =
     el
         [ bulma.tile, is.parent ]
         [ el
-            [ bulma.notification, bulma.tile, is.child, is.light ]
+            [ bulma.tile, bulma.notification, is.child, is.light ]
             (List.map viewMovement workout)
         ]
 
@@ -378,15 +404,14 @@ pluralize n singular =
 
 
 generatePlan :
-    { exercises : List Exercise
-    , weeksToProject : Int
-    , daysPerWeek : Int
-    }
+    Int
+    -> List ( Date.Day, Exercise )
     -> List { week : List { workout : List Movement } }
-generatePlan { exercises, weeksToProject, daysPerWeek } =
+generatePlan weeksToProject selected =
     List.repeat weeksToProject
         { week =
-            List.repeat daysPerWeek
+            -- TODO
+            List.repeat 3
                 { workout = []
                 }
         }
