@@ -3,6 +3,7 @@ module Main exposing (Model, Msg, init, update, view)
 import Array exposing (Array)
 import Date
 import Days
+import Dict exposing (Dict)
 import Html
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -14,6 +15,9 @@ type alias Model =
     { clientName : String
     , weeksToProject : Int
     , selected : List ( Date.Day, Exercise )
+    , startingMovements : Dict String Int
+
+    -- FROM FLAGS
     , document : String
     , library : List Exercise
     }
@@ -48,7 +52,7 @@ type alias Row string int =
 init : D.Value -> ( Result String Model, Cmd Msg )
 init flag =
     D.decodeValue exercises flag
-        |> Result.map (uncurry (Model "" 6 []))
+        |> Result.map (uncurry (Model "" 6 [] Dict.empty))
         |> pure
 
 
@@ -151,7 +155,8 @@ badFormat sheet because =
 
 type Msg
     = InputClientName String
-    | Toggle Exercise Date.Day Bool
+    | StartExerciseAt Exercise Int
+    | ToggleSchedule Exercise Date.Day Bool
 
 
 updateResult : Msg -> Result x Model -> ( Result x Model, Cmd Msg )
@@ -170,21 +175,19 @@ update msg model =
         InputClientName value ->
             pure { model | clientName = value }
 
-        Toggle exercise day True ->
+        StartExerciseAt { name } index ->
+            pure { model | startingMovements = Dict.insert name index model.startingMovements }
+
+        ToggleSchedule exercise day True ->
             pure { model | selected = ( day, exercise ) :: model.selected }
 
-        Toggle exercise day False ->
+        ToggleSchedule exercise day False ->
             pure { model | selected = List.filter ((/=) ( day, exercise )) model.selected }
 
 
 pure : x -> ( x, Cmd Msg )
 pure x =
     ( x, Cmd.none )
-
-
-remove : a -> List a -> List a
-remove a =
-    List.filter ((/=) a)
 
 
 view : Result String Model -> Element Msg
@@ -299,8 +302,28 @@ viewDays exercise selected =
             [ bulma.dropdownMenu ]
             [ el
                 [ bulma.dropdownContent ]
-                [ el [ bulma.dropdownItem ] <|
-                    List.map (viewDay exercise schedule) Days.list
+                [ el
+                    [ bulma.dropdownItem ]
+                    [ el
+                        [ bulma.field ]
+                        [ el [ bulma.control ]
+                            [ label [ bulma.label ] [ text "Schedule" ]
+                            , concat <| List.map (viewDay exercise schedule) Days.list
+                            ]
+                        ]
+                    , el
+                        [ bulma.field ]
+                        [ el
+                            [ bulma.control ]
+                            [ label [ bulma.label ] [ text "Starting movement" ]
+                            , select
+                                [ bulma.select
+                                , onInt "change" <| StartExerciseAt exercise
+                                ]
+                                (List.indexedMap viewStartingOption exercise.movements)
+                            ]
+                        ]
+                    ]
                 ]
             ]
         ]
@@ -315,12 +338,19 @@ viewDay exercise schedule day =
             [ input
                 [ type_ "checkbox"
                 , checked <| List.member day schedule
-                , onCheck <| Toggle exercise day
+                , onCheck <| ToggleSchedule exercise day
                 ]
             , nbsp
             , text <| Days.toString day
             ]
         ]
+
+
+viewStartingOption : Int -> Movement -> Element Msg
+viewStartingOption index movement =
+    option
+        [ value <| toString index ]
+        [ text movement.name, text " (", viewSetRepSummary movement, text ")" ]
 
 
 viewFeatures : List String -> Element Msg
@@ -332,7 +362,7 @@ viewSchedule : Model -> Element Msg
 viewSchedule model =
     let
         projection =
-            generatePlan model.weeksToProject model.selected
+            generatePlan model.startingMovements model.weeksToProject model.selected
     in
     if List.all (.week >> List.isEmpty) projection then
         el
@@ -371,25 +401,15 @@ viewMovement movement =
         [ el
             [ bulma.column ]
             [ h2 [ has.textWeightBold ] [ text movement.name ]
-            , el
-                []
-                [ text <|
-                    toString movement.sets
-                        ++ " "
-                        ++ pluralize movement.sets "set"
-                        ++ " × "
-                        ++ toString movement.reps
-                        ++ " "
-                        ++ pluralize movement.reps "rep"
-                ]
+            , el [] [ viewSetRepSummary movement ]
             , el [] [ text movement.load ]
             , el [] [ text movement.notes ]
             ]
         ]
 
 
-onInt : (Int -> msg) -> Attribute msg
-onInt toMsg =
+onInt : String -> (Int -> msg) -> Attribute msg
+onInt event toMsg =
     let
         parseInt str =
             case String.toInt str of
@@ -399,7 +419,19 @@ onInt toMsg =
                 Err reason ->
                     D.fail reason
     in
-    on "input" <| D.andThen parseInt targetValue
+    on event <| D.andThen parseInt targetValue
+
+
+viewSetRepSummary : Movement -> Element msg
+viewSetRepSummary movement =
+    text <|
+        toString movement.sets
+            ++ " "
+            ++ pluralize movement.sets "set"
+            ++ " × "
+            ++ toString movement.reps
+            ++ " "
+            ++ pluralize movement.reps "rep"
 
 
 pluralize : Int -> String -> String
@@ -415,34 +447,41 @@ pluralize n singular =
 
 
 generatePlan :
-    Int
+    Dict String Int
+    -> Int
     -> List ( Date.Day, Exercise )
     -> List { week : List { workout : List Movement } }
-generatePlan weeksToProject selected =
+generatePlan startingMovements weeksToProject selected =
     List.range 1 weeksToProject
-        |> List.map (\index -> generateWeek index selected)
+        |> List.map (\index -> generateWeek startingMovements index selected)
 
 
-generateWeek : Int -> List ( Date.Day, Exercise ) -> { week : List { workout : List Movement } }
-generateWeek index selected =
+generateWeek : Dict String Int -> Int -> List ( Date.Day, Exercise ) -> { week : List { workout : List Movement } }
+generateWeek startingMovements index selected =
     let
         onDay day =
             selected
                 |> List.filter (Tuple.first >> (==) day)
                 |> List.map Tuple.second
     in
-    { week = List.filterMap (generateWorkout index << onDay) Days.list }
+    { week =
+        List.map (generateWorkout startingMovements index << onDay) Days.list
+            |> List.filter (not << List.isEmpty << .workout)
+    }
 
 
-generateWorkout : Int -> List Exercise -> Maybe { workout : List Movement }
-generateWorkout index exercises =
-    if List.isEmpty exercises then
-        Nothing
-    else
-        Just
-            { workout =
-                List.filterMap (.movements >> generateMovement index) exercises
-            }
+generateWorkout : Dict String Int -> Int -> List Exercise -> { workout : List Movement }
+generateWorkout startingMovements index exercises =
+    let
+        skipMovements { name } =
+            Dict.get name startingMovements
+                |> Maybe.withDefault 0
+
+        plan exercise =
+            List.drop (skipMovements exercise) exercise.movements
+                |> generateMovement index
+    in
+    { workout = List.filterMap plan exercises }
 
 
 generateMovement : Int -> List Movement -> Maybe Movement

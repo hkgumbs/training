@@ -219,6 +219,7 @@ is :
     , large : Attribute msg
     , medium : Attribute msg
     , hoverable : Attribute msg
+    , active : Attribute msg
 
     -- BUTTONS
     , selected : Attribute msg
@@ -269,6 +270,7 @@ is =
     , large = class "is-large"
     , medium = class "is-medium"
     , hoverable = class "is-hoverable"
+    , active = class "is-active"
     , selected = class "is-selected"
     , static = class "is-static"
     , outlined = class "is-outlined"
@@ -296,6 +298,10 @@ has :
     , textLight : Attribute msg
     , textWhite : Attribute msg
     , textGrey : Attribute msg
+
+    -- TEXT ALIGNMENT
+    , textLeft : Attribute msg
+    , textRight : Attribute msg
     , textCentered : Attribute msg
 
     -- BACKGROUND COLOR
@@ -324,6 +330,8 @@ has =
     , textLight = class "has-text-light"
     , textWhite = class "has-text-white"
     , textGrey = class "has-text-grey"
+    , textLeft = class "has-text-left"
+    , textRight = class "has-text-right"
     , textCentered = class "has-text-centered"
     , backgroundPrimary = class "has-background-primary"
     , backgroundInfo = class "has-background-info"
