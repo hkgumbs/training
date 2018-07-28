@@ -10,7 +10,7 @@ cache:
 install:
   - npm install
 
-before_deploy:
+script:
   - $(npm bin)/elm-app build
 
 deploy:
