@@ -1,6 +1,5 @@
 module Main exposing (Model, Msg, init, update, view)
 
-import Date
 import Days
 import Dict exposing (Dict)
 import Exercise exposing (Exercise, Movement)
@@ -8,34 +7,68 @@ import Html
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as D
+import Time.Date exposing (Date, Weekday)
+import Time.Iso8601
 import Ui exposing (..)
 
 
 type alias Model =
     { clientName : String
-    , search : String
+    , searchTerm : String
     , weeksToProject : Int
-    , selected : List ( Date.Day, Exercise )
+    , selected : List ( Weekday, Exercise )
     , startingMovements : Dict String Int
 
     -- FROM FLAGS
+    , today : Date
     , document : String
     , library : List Exercise
     }
 
 
 init : D.Value -> ( Result String Model, Cmd Msg )
-init flag =
-    D.decodeValue Exercise.fromSheet flag
-        |> Result.map (uncurry (Model "" "" 6 [] Dict.empty))
-        |> pure
+init =
+    pure << Result.map initWithFlags << decodeFlags
+
+
+initWithFlags : ( List Exercise, String, Date ) -> Model
+initWithFlags ( library, document, today ) =
+    { clientName = ""
+    , searchTerm = ""
+    , weeksToProject = 6
+    , selected = []
+    , startingMovements = Dict.empty
+    , today = today
+    , document = document
+    , library = library
+    }
+
+
+decodeFlags : D.Value -> Result String ( List Exercise, String, Date )
+decodeFlags =
+    D.decodeValue
+        (D.map3 (,,)
+            Exercise.fromSheet
+            (D.field "document" D.string)
+            (D.field "today" D.string
+                |> D.andThen
+                    (\string ->
+                        case Time.Iso8601.toDate string of
+                            Ok date ->
+                                D.succeed date
+
+                            Err reason ->
+                                D.fail <| toString reason
+                    )
+            )
+        )
 
 
 type Msg
     = InputClientName String
     | InputSearch String
     | StartExerciseAt Exercise Int
-    | ToggleSchedule Exercise Date.Day Bool
+    | ToggleSchedule Exercise Weekday Bool
 
 
 updateResult : Msg -> Result x Model -> ( Result x Model, Cmd Msg )
@@ -55,7 +88,7 @@ update msg model =
             pure { model | clientName = value }
 
         InputSearch value ->
-            pure { model | search = value }
+            pure { model | searchTerm = value }
 
         StartExerciseAt { name } index ->
             pure { model | startingMovements = Dict.insert name index model.startingMovements }
@@ -138,14 +171,14 @@ viewSidebar model =
                     ]
                 ]
             , model.library
-                |> List.filter (meetsSearchCriteria model.search)
+                |> List.filter (meetsSearchCriteria model.searchTerm)
                 |> List.map (viewExercise model.selected)
                 |> el []
             ]
         ]
 
 
-viewExercise : List ( Date.Day, Exercise ) -> Exercise -> Element Msg
+viewExercise : List ( Weekday, Exercise ) -> Exercise -> Element Msg
 viewExercise selected exercise =
     el
         [ bulma.box ]
@@ -169,7 +202,7 @@ viewHeader name =
         [ el [ bulma.levelLeft ] [ h2 [ bulma.subtitle ] [ text name ] ] ]
 
 
-viewDays : Exercise -> List ( Date.Day, Exercise ) -> Element Msg
+viewDays : Exercise -> List ( Weekday, Exercise ) -> Element Msg
 viewDays exercise selected =
     let
         schedule =
@@ -218,7 +251,7 @@ viewDays exercise selected =
         ]
 
 
-viewDay : Exercise -> List Date.Day -> Date.Day -> Element Msg
+viewDay : Exercise -> List Weekday -> Weekday -> Element Msg
 viewDay exercise schedule day =
     el
         [ bulma.control ]
@@ -251,7 +284,7 @@ viewSchedule : Model -> Element Msg
 viewSchedule model =
     let
         projection =
-            generatePlan model.startingMovements model.weeksToProject model.selected
+            generatePlan model
     in
     if List.all (.week >> List.isEmpty) projection then
         el
@@ -268,32 +301,42 @@ viewSchedule model =
         el [ bulma.tile, is.vertical ] <| List.map viewWeek projection
 
 
-viewWeek : { week : List { workout : List Movement } } -> Element Msg
+viewWeek : { week : List Workout } -> Element Msg
 viewWeek { week } =
     el [ bulma.tile ] <| List.map viewWorkout week
 
 
-viewWorkout : { workout : List Movement } -> Element Msg
-viewWorkout { workout } =
+viewWorkout : Workout -> Element Msg
+viewWorkout (Workout date movements) =
     el
         [ bulma.tile, is.parent ]
+        [ el [ bulma.tile, bulma.notification, is.child, is.light ] <|
+            viewDate date
+                :: List.map viewMovement movements
+        ]
+
+
+viewDate : Date -> Element msg
+viewDate date =
+    viewColumn
         [ el
-            [ bulma.tile, bulma.notification, is.child, is.light ]
-            (List.map viewMovement workout)
+            [ bulma.tag, is.white ]
+            [ text <| toString <| Time.Date.weekday date
+            , text " "
+            , text <| toString <| Time.Date.month date
+            , text "/"
+            , text <| toString <| Time.Date.day date
+            ]
         ]
 
 
 viewMovement : Movement -> Element Msg
 viewMovement movement =
-    el
-        [ bulma.columns ]
-        [ el
-            [ bulma.column ]
-            [ h2 [ has.textWeightBold ] [ text movement.name ]
-            , el [] [ viewSetRepSummary movement ]
-            , el [] [ text movement.load ]
-            , el [] [ text movement.notes ]
-            ]
+    viewColumn
+        [ h2 [ has.textWeightBold ] [ text movement.name ]
+        , el [] [ viewSetRepSummary movement ]
+        , el [] [ text movement.load ]
+        , el [] [ text movement.notes ]
         ]
 
 
@@ -309,6 +352,11 @@ onInt event toMsg =
                     D.fail reason
     in
     on event <| D.andThen parseInt targetValue
+
+
+viewColumn : List (Element msg) -> Element msg
+viewColumn children =
+    el [ bulma.columns ] [ el [ bulma.column ] children ]
 
 
 viewSetRepSummary : Movement -> Element msg
@@ -341,32 +389,34 @@ meetsSearchCriteria term exercise =
 -- PLAN
 
 
-generatePlan :
-    Dict String Int
-    -> Int
-    -> List ( Date.Day, Exercise )
-    -> List { week : List { workout : List Movement } }
-generatePlan startingMovements weeksToProject selected =
-    List.range 1 weeksToProject
-        |> List.map (\index -> generateWeek startingMovements index selected)
+type Workout
+    = Workout Date (List Movement)
 
 
-generateWeek : Dict String Int -> Int -> List ( Date.Day, Exercise ) -> { week : List { workout : List Movement } }
-generateWeek startingMovements index selected =
+generatePlan : Model -> List { week : List Workout }
+generatePlan model =
+    List.range 1 model.weeksToProject
+        |> List.map (generateWeek model)
+
+
+generateWeek : Model -> Int -> { week : List Workout }
+generateWeek { startingMovements, selected, today } index =
     let
         onDay day =
             selected
                 |> List.filter (Tuple.first >> (==) day)
                 |> List.map Tuple.second
+                |> (,) (Days.offsetFrom today day index)
     in
     { week =
-        List.map (generateWorkout startingMovements index << onDay) Days.list
-            |> List.filter (not << List.isEmpty << .workout)
+        Days.list
+            |> List.map (generateWorkout startingMovements index << onDay)
+            |> List.filter (\(Workout _ movements) -> not <| List.isEmpty movements)
     }
 
 
-generateWorkout : Dict String Int -> Int -> List Exercise -> { workout : List Movement }
-generateWorkout startingMovements index exercises =
+generateWorkout : Dict String Int -> Int -> ( Date, List Exercise ) -> Workout
+generateWorkout startingMovements index ( date, exercises ) =
     let
         skipMovements { name } =
             Dict.get name startingMovements
@@ -376,7 +426,7 @@ generateWorkout startingMovements index exercises =
             List.drop (skipMovements exercise) exercise.movements
                 |> generateMovement index
     in
-    { workout = List.filterMap plan exercises }
+    Workout date <| List.filterMap plan exercises
 
 
 generateMovement : Int -> List Movement -> Maybe Movement

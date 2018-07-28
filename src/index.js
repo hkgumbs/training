@@ -27,6 +27,7 @@ const getExercises = spreadsheet => {
     spreadsheetId: spreadsheet.result.spreadsheetId,
     ranges: sheets.map(sheet => `${sheet.properties.title}!A1:Z100`),
   }).then(grids => ({
+    today: new Date().toISOString(),
     document: spreadsheet.result.properties.title,
     names: sheets.map(sheet => sheet.properties.title),
     exercises: grids.result.valueRanges.map(range => range.values),

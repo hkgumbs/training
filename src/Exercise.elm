@@ -30,15 +30,12 @@ type alias Row string int =
     }
 
 
-fromSheet : D.Decoder ( String, List Exercise )
+fromSheet : D.Decoder (List Exercise)
 fromSheet =
-    D.map2 (,)
-        (D.field "document" D.string)
-        (D.andThen (List.foldr (D.map2 (::)) (D.succeed []))
-            (D.map2 (List.map2 parseExercise)
-                (D.field "names" (D.list D.string))
-                (D.field "exercises" (D.list (D.list (D.list D.string))))
-            )
+    D.andThen (List.foldr (D.map2 (::)) (D.succeed []))
+        (D.map2 (List.map2 parseExercise)
+            (D.field "names" (D.list D.string))
+            (D.field "exercises" (D.list (D.list (D.list D.string))))
         )
 
 
