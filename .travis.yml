@@ -1,0 +1,25 @@
+sudo: false
+
+language: node
+
+cache:
+  directories:
+    - node_modules
+    - elm-stuff/build-artifacts
+
+install:
+  - npm install
+
+before_deploy:
+  - $(npm bin)/elm-app build
+
+deploy:
+  provider: pages
+  local_dir: build
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  on:
+    branch: master
+
+notifications:
+  email: false
