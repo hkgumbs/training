@@ -28,26 +28,13 @@ type alias Model =
 
 init : D.Value -> ( Result String Model, Cmd Msg )
 init =
-    pure << Result.map initWithFlags << decodeFlags
+    pure << decodeFlags
 
 
-initWithFlags : ( List Exercise, String, Date ) -> Model
-initWithFlags ( library, document, today ) =
-    { clientName = ""
-    , searchTerm = ""
-    , weeksToProject = 6
-    , selected = []
-    , startingMovements = Dict.empty
-    , today = today
-    , document = document
-    , library = library
-    }
-
-
-decodeFlags : D.Value -> Result String ( List Exercise, String, Date )
+decodeFlags : D.Value -> Result String Model
 decodeFlags =
-    D.decodeValue
-        (D.map3 (,,)
+    D.decodeValue <|
+        D.map3 initWithFlags
             Exercise.fromSheet
             (D.field "document" D.string)
             (D.field "today" D.string
@@ -61,7 +48,19 @@ decodeFlags =
                                 D.fail <| toString reason
                     )
             )
-        )
+
+
+initWithFlags : List Exercise -> String -> Date -> Model
+initWithFlags library document today =
+    { clientName = ""
+    , searchTerm = ""
+    , weeksToProject = 6
+    , selected = []
+    , startingMovements = Dict.empty
+    , today = today
+    , document = document
+    , library = library
+    }
 
 
 type Msg
