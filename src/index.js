@@ -1,7 +1,6 @@
 import "bulma/css/bulma.css";
 import "@fortawesome/fontawesome-free/js/all.js";
 import "../vendor/google_api.js";
-import auth0 from "auth0-js";
 import { Main } from "./Main.elm";
 import registerServiceWorker from "./registerServiceWorker";
 
