@@ -13,6 +13,7 @@ import Ui exposing (..)
 
 type alias Model =
     { clientName : String
+    , search : String
     , weeksToProject : Int
     , selected : List ( Date.Day, Exercise )
     , startingMovements : Dict String Int
@@ -52,7 +53,7 @@ type alias Row string int =
 init : D.Value -> ( Result String Model, Cmd Msg )
 init flag =
     D.decodeValue exercises flag
-        |> Result.map (uncurry (Model "" 6 [] Dict.empty))
+        |> Result.map (uncurry (Model "" "" 6 [] Dict.empty))
         |> pure
 
 
@@ -155,6 +156,7 @@ badFormat sheet because =
 
 type Msg
     = InputClientName String
+    | InputSearch String
     | StartExerciseAt Exercise Int
     | ToggleSchedule Exercise Date.Day Bool
 
@@ -174,6 +176,9 @@ update msg model =
     case msg of
         InputClientName value ->
             pure { model | clientName = value }
+
+        InputSearch value ->
+            pure { model | search = value }
 
         StartExerciseAt { name } index ->
             pure { model | startingMovements = Dict.insert name index model.startingMovements }
@@ -248,10 +253,17 @@ viewSidebar model =
                 , el
                     [ bulma.control, has.iconsLeft ]
                     [ icon "search"
-                    , input [ bulma.input, placeholder "Find an exercise..." ]
+                    , input
+                        [ bulma.input
+                        , placeholder "Find an exercise..."
+                        , onInput InputSearch
+                        ]
                     ]
                 ]
-            , el [] <| List.map (viewExercise model.selected) model.library
+            , model.library
+                |> List.filter (meetsSearchCriteria model.search)
+                |> List.map (viewExercise model.selected)
+                |> el []
             ]
         ]
 
@@ -440,6 +452,12 @@ pluralize n singular =
         singular
     else
         singular ++ "s"
+
+
+meetsSearchCriteria : String -> Exercise -> Bool
+meetsSearchCriteria term exercise =
+    String.contains term exercise.name
+        || List.any (String.contains term) exercise.features
 
 
 
