@@ -1,11 +1,13 @@
 module Main exposing (Model, Msg, init, update, view)
 
+import Base64
 import Days
 import Dict exposing (Dict)
 import Exercise exposing (Exercise, Movement)
 import Html
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Ical
 import Json.Decode as D
 import Time.Date exposing (Date, Weekday)
 import Time.Iso8601
@@ -111,6 +113,10 @@ view result =
             text reason
 
         Ok model ->
+            let
+                projection =
+                    generatePlan model
+            in
             el
                 [ bulma.section ]
                 [ el
@@ -119,14 +125,16 @@ view result =
                         [ bulma.tile, is.ancestor ]
                         [ el
                             [ bulma.tile ]
-                            [ viewSidebar model, viewSchedule model ]
+                            [ viewSidebar projection model
+                            , viewSchedule projection
+                            ]
                         ]
                     ]
                 ]
 
 
-viewSidebar : Model -> Element Msg
-viewSidebar model =
+viewSidebar : List { week : List Workout } -> Model -> Element Msg
+viewSidebar projection model =
     el
         [ bulma.tile, is.three, is.parent ]
         [ el
@@ -145,15 +153,7 @@ viewSidebar model =
                     ]
                 , el
                     [ bulma.control ]
-                    [ button
-                        [ bulma.button
-                        , is.medium
-                        , disabled <|
-                            List.isEmpty model.selected
-                                || String.isEmpty model.clientName
-                        ]
-                        [ icon "file-download" ]
-                    ]
+                    [ viewIcalFileDownload model.clientName model.today projection ]
                 ]
             , hr
             , el
@@ -175,6 +175,24 @@ viewSidebar model =
                 |> el []
             ]
         ]
+
+
+viewIcalFileDownload : String -> Date -> List { week : List Workout } -> Element msg
+viewIcalFileDownload clientName today projection =
+    a
+        [ bulma.button
+        , is.medium
+        , downloadAs <| "training_" ++ String.toLower clientName ++ ".ical"
+        , if String.isEmpty clientName || noWorkouts projection then
+            attribute "disabled" ""
+          else
+            href <|
+                String.concat
+                    [ "data:application/octet-stream;charset=utf-16le;base64,"
+                    , Base64.encode <| Ical.generate today (toEvents clientName projection)
+                    ]
+        ]
+        [ icon "file-download" ]
 
 
 viewExercise : List ( Weekday, Exercise ) -> Exercise -> Element Msg
@@ -279,13 +297,9 @@ viewTags =
     el [ bulma.tags ] << List.map (\name -> el [ bulma.tag ] [ text name ])
 
 
-viewSchedule : Model -> Element Msg
-viewSchedule model =
-    let
-        projection =
-            generatePlan model
-    in
-    if List.all (.week >> List.isEmpty) projection then
+viewSchedule : List { week : List Workout } -> Element Msg
+viewSchedule projection =
+    if noWorkouts projection then
         el
             [ bulma.tile, is.parent ]
             [ el
@@ -443,6 +457,26 @@ generateMovement index movements =
                 Just first
             else
                 generateMovement (index - first.progressionRate) rest
+
+
+noWorkouts : List { week : List Workout } -> Bool
+noWorkouts =
+    List.all (.week >> List.isEmpty)
+
+
+toEvents : String -> List { week : List Workout } -> List Ical.Event
+toEvents clientName =
+    List.concatMap
+        (\{ week } ->
+            List.map
+                (\(Workout date movements) ->
+                    { date = date
+                    , title = clientName
+                    , details = String.join "\n" <| List.map .name movements
+                    }
+                )
+                week
+        )
 
 
 main : Program D.Value (Result String Model) Msg
