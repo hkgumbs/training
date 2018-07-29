@@ -1,6 +1,8 @@
 sudo: required
 
 language: node
+node_js:
+  - '7'
 
 cache:
   directories:
