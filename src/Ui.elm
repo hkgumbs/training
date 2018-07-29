@@ -210,6 +210,7 @@ is :
     , warning : Attribute msg
     , danger : Attribute msg
     , light : Attribute msg
+    , dark : Attribute msg
     , white : Attribute msg
     , invisible : Attribute msg
     , bold : Attribute msg
@@ -263,6 +264,7 @@ is =
     , warning = class "is-warning"
     , danger = class "is-danger"
     , light = class "is-light"
+    , dark = class "is-dark"
     , white = class "is-white"
     , invisible = class "is-invisible"
     , bold = class "is-bold"

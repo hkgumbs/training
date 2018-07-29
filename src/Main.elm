@@ -190,7 +190,7 @@ viewExercise selected exercise =
                 [ bulma.levelRight ]
                 [ el [ bulma.levelItem ] [ viewDays exercise selected ] ]
             ]
-        , viewFeatures exercise.features
+        , viewTags exercise.tags
         ]
 
 
@@ -274,8 +274,8 @@ viewStartingOption index movement =
         [ text movement.name, text " (", viewSetRepSummary movement, text ")" ]
 
 
-viewFeatures : List String -> Element Msg
-viewFeatures =
+viewTags : List String -> Element Msg
+viewTags =
     el [ bulma.tags ] << List.map (\name -> el [ bulma.tag ] [ text name ])
 
 
@@ -319,12 +319,16 @@ viewDate : Date -> Element msg
 viewDate date =
     viewColumn
         [ el
-            [ bulma.tag, is.white ]
-            [ text <| toString <| Time.Date.weekday date
-            , text " "
-            , text <| toString <| Time.Date.month date
-            , text "/"
-            , text <| toString <| Time.Date.day date
+            [ bulma.tags, has.addons ]
+            [ el
+                [ bulma.tag, is.dark ]
+                [ text <| toString <| Time.Date.weekday date ]
+            , el
+                [ bulma.tag, is.white ]
+                [ text <| toString <| Time.Date.month date
+                , text "/"
+                , text <| toString <| Time.Date.day date
+                ]
             ]
         ]
 
@@ -381,7 +385,7 @@ pluralize n singular =
 meetsSearchCriteria : String -> Exercise -> Bool
 meetsSearchCriteria term exercise =
     String.contains term exercise.name
-        || List.any (String.contains term) exercise.features
+        || List.any (String.contains term) exercise.tags
 
 
 

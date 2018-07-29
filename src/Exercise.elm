@@ -6,7 +6,7 @@ import Json.Decode as D
 
 type alias Exercise =
     { name : String
-    , features : List String
+    , tags : List String
     , movements : List Movement
     }
 
@@ -45,27 +45,34 @@ parseExercise name table =
         [] ->
             badFormat name "since this it is empty"
 
-        headers :: exercises ->
+        firstRow :: otherRows ->
             D.map7 Row
-                (findHeader "name" name headers)
-                (findHeader "sets" name headers)
-                (findHeader "reps" name headers)
-                (findHeader "load" name headers)
-                (findHeader "rest" name headers)
-                (findHeader "progression rate" name headers)
-                (findHeader "notes" name headers)
+                (findHeader "name" name firstRow)
+                (findHeader "sets" name firstRow)
+                (findHeader "reps" name firstRow)
+                (findHeader "load" name firstRow)
+                (findHeader "rest" name firstRow)
+                (findHeader "progression rate" name firstRow)
+                (findHeader "notes" name firstRow)
                 |> D.andThen
                     (\headers ->
+                        let
+                            arrays =
+                                List.map Array.fromList otherRows
+                        in
                         case
-                            exercises
-                                |> List.map (parseMovement headers << Array.fromList)
+                            arrays
+                                |> List.map (parseMovement headers)
                                 |> List.foldr (Result.map2 (::)) (Ok [])
                         of
                             Err reason ->
                                 badFormat name reason
 
                             Ok movements ->
-                                D.succeed <| Exercise name [{- TODO -}] movements
+                                D.map3 Exercise
+                                    (D.succeed name)
+                                    (findTags name firstRow arrays)
+                                    (D.succeed movements)
                     )
 
 
@@ -112,6 +119,16 @@ findHeaderHelp name sheet headers index =
                 D.succeed index
             else
                 findHeaderHelp name sheet rest (index + 1)
+
+
+findTags : String -> List String -> List (Array String) -> D.Decoder (List String)
+findTags name firstRow arrays =
+    findHeader "tags" name firstRow
+        |> D.map
+            (\index ->
+                List.map (findCell index) arrays
+                    |> List.filter (not << String.isEmpty)
+            )
 
 
 badFormat : String -> String -> D.Decoder a
